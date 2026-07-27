@@ -1,0 +1,98 @@
+param(
+    [ValidateSet("Debug", "Release")]
+    [string]$Configuration = "Release"
+)
+
+$ErrorActionPreference = "Stop"
+
+$localSigning = Join-Path $PSScriptRoot "load-signing-env.ps1"
+if (-not $env:VEXARK_KEYSTORE_PATH -and (Test-Path -LiteralPath $localSigning)) {
+    . $localSigning
+}
+$projectRoot = Split-Path -Parent $PSScriptRoot
+$dotnet = Join-Path $env:USERPROFILE ".dotnet\dotnet.exe"
+$androidSdk = Join-Path $env:LOCALAPPDATA "Android\Sdk"
+$javaHome = Join-Path $env:USERPROFILE ".gradle\jdks\jetbrains_s_r_o_-21-amd64-windows.2"
+$embedded = Join-Path $projectRoot "src\PhoneBackup.Desktop\Embedded"
+$publish = Join-Path $projectRoot "artifacts\publish"
+$cargo = Join-Path $env:USERPROFILE ".cargo\bin\cargo.exe"
+$ndkHome = Join-Path $androidSdk "ndk\29.0.14206865"
+
+if (-not (Test-Path $dotnet)) { throw ".NET SDK не найден: $dotnet" }
+if (-not (Test-Path $javaHome)) { throw "JDK 21 не найден: $javaHome" }
+if (-not (Test-Path (Join-Path $androidSdk "platform-tools\adb.exe"))) {
+    throw "Android Platform Tools не найдены: $androidSdk"
+}
+if (-not (Test-Path $cargo)) { throw "Rust/Cargo не найден: $cargo" }
+if (-not (Test-Path $ndkHome)) { throw "Android NDK 29 не найден: $ndkHome" }
+
+$env:JAVA_HOME = $javaHome
+$env:ANDROID_HOME = $androidSdk
+$env:ANDROID_NDK_HOME = $ndkHome
+
+Push-Location (Join-Path $projectRoot "helper")
+try {
+    & $cargo "+stable-x86_64-pc-windows-gnu" "ndk" "--target" "arm64-v8a" `
+        "--platform" "29" "build" "--release"
+    if ($LASTEXITCODE -ne 0) { throw "Сборка Rust root-helper завершилась ошибкой." }
+}
+finally {
+    Pop-Location
+}
+
+$helperAssets = Join-Path $projectRoot "agent\app\src\main\assets\helper\arm64-v8a"
+New-Item -ItemType Directory -Force -Path $helperAssets | Out-Null
+Copy-Item (Join-Path $projectRoot "helper\target\aarch64-linux-android\release\phonebackup-helper") `
+    $helperAssets -Force
+
+Push-Location (Join-Path $projectRoot "agent")
+try {
+    $agentTask = if ($Configuration -eq "Release") { ":app:assembleRelease" } else { ":app:assembleDebug" }
+    & ".\gradlew.bat" $agentTask "--no-daemon"
+    if ($LASTEXITCODE -ne 0) { throw "Сборка Android Agent завершилась ошибкой." }
+}
+finally {
+    Pop-Location
+}
+
+New-Item -ItemType Directory -Force -Path $embedded | Out-Null
+Copy-Item (Join-Path $androidSdk "platform-tools\adb.exe") $embedded -Force
+Copy-Item (Join-Path $androidSdk "platform-tools\AdbWinApi.dll") $embedded -Force
+Copy-Item (Join-Path $androidSdk "platform-tools\AdbWinUsbApi.dll") $embedded -Force
+$agentApk = if ($Configuration -eq "Release") {
+    Join-Path $projectRoot "agent\app\build\outputs\apk\release\app-release.apk"
+} else {
+    Join-Path $projectRoot "agent\app\build\outputs\apk\debug\app-debug.apk"
+}
+Copy-Item $agentApk `
+    (Join-Path $embedded "phonebackup-agent.apk") -Force
+
+& $dotnet test (Join-Path $projectRoot "tests\PhoneBackup.Core.Tests\PhoneBackup.Core.Tests.csproj") `
+    "--configuration" $Configuration "--nologo"
+if ($LASTEXITCODE -ne 0) { throw "Core tests завершились ошибкой." }
+
+& $dotnet publish (Join-Path $projectRoot "src\PhoneBackup.Desktop\PhoneBackup.Desktop.csproj") `
+    "--configuration" $Configuration "--runtime" "win-x64" "--self-contained" "true" `
+    "--output" $publish "--nologo"
+if ($LASTEXITCODE -ne 0) { throw "Сборка VeXArk.exe завершилась ошибкой." }
+
+$legacyExecutables = @("PhoneBackup.exe", "MobiArk.exe")
+foreach ($legacyName in $legacyExecutables) {
+    $legacyExe = Join-Path $publish $legacyName
+    if (Test-Path -LiteralPath $legacyExe) {
+        try {
+            Remove-Item -LiteralPath $legacyExe -Force -ErrorAction Stop
+        }
+        catch {
+            Write-Warning "Старый $legacyName запущен и будет удалён после его закрытия."
+        }
+    }
+}
+Get-ChildItem -LiteralPath $publish -Filter "*.pdb" | Remove-Item -Force
+Copy-Item (Join-Path $projectRoot "LICENSE") (Join-Path $publish "LICENSE.txt") -Force
+Copy-Item (Join-Path $projectRoot "NOTICE") (Join-Path $publish "NOTICE.txt") -Force
+
+$exe = Join-Path $publish "VeXArk.exe"
+Write-Host ""
+Write-Host "Готово: $exe"
+Write-Host ("Размер: {0:N1} МБ" -f ((Get-Item $exe).Length / 1MB))

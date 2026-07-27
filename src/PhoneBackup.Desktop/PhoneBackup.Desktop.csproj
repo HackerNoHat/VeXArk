@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\vexark.ico</ApplicationIcon>
+    <AssemblyName>VeXArk</AssemblyName>
+    <RootNamespace>PhoneBackup.Desktop</RootNamespace>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PhoneBackup.Core\PhoneBackup.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="Exists('Embedded\adb.exe')">
+    <EmbeddedResource Include="Embedded\adb.exe" LogicalName="PhoneBackup.Runtime.adb.exe" />
+    <EmbeddedResource Include="Embedded\AdbWinApi.dll" LogicalName="PhoneBackup.Runtime.AdbWinApi.dll" />
+    <EmbeddedResource Include="Embedded\AdbWinUsbApi.dll" LogicalName="PhoneBackup.Runtime.AdbWinUsbApi.dll" />
+    <EmbeddedResource Include="Embedded\phonebackup-agent.apk" LogicalName="PhoneBackup.Runtime.phonebackup-agent.apk" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NSec.Cryptography" Version="26.4.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.10" />
+  </ItemGroup>
+</Project>

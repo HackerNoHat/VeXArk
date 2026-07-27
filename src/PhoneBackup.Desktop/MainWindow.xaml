@@ -1,0 +1,737 @@
+﻿<Window x:Class="PhoneBackup.Desktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="VeXArk"
+        Width="1280"
+        Height="820"
+        MinWidth="1040"
+        MinHeight="680"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterScreen">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="44"
+                            ResizeBorderThickness="6"
+                            CornerRadius="12"
+                            GlassFrameThickness="0"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Border Background="{DynamicResource BackgroundBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="11">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="44"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Background="{DynamicResource SidebarBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0">
+                    <Border Width="26" Height="26" CornerRadius="7" Background="#FFFFFFFF" Padding="3">
+                        <Image Source="{StaticResource VeXArkMark}" Stretch="Uniform"/>
+                    </Border>
+                    <TextBlock Text="VeXArk" FontWeight="SemiBold" FontSize="13"
+                               VerticalAlignment="Center" Margin="9,0,0,0"/>
+                    <TextBlock Text="  •  резервное копирование Android"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               FontSize="12" VerticalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource CaptionButtonStyle}" Content="&#xE921;"
+                            Click="MinimizeButton_OnClick" ToolTip="Свернуть"/>
+                    <Button Style="{StaticResource CaptionButtonStyle}" Content="&#xE922;"
+                            Click="MaximizeButton_OnClick" ToolTip="Развернуть"/>
+                    <Button Style="{StaticResource CaptionButtonStyle}" Content="&#xE8BB;"
+                            Click="CloseButton_OnClick" ToolTip="Закрыть"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="244"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="{DynamicResource SidebarBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,1,0">
+                    <DockPanel Margin="16,18,16,16">
+                        <StackPanel DockPanel.Dock="Top">
+                            <StackPanel Orientation="Horizontal" Margin="8,0,8,22">
+                                <Border Width="46" Height="46" CornerRadius="13"
+                                        Background="#FFFFFFFF" Padding="6">
+                                    <Image Source="{StaticResource VeXArkMark}" Stretch="Uniform"/>
+                                </Border>
+                                <StackPanel Margin="12,1,0,0">
+                                    <TextBlock Text="VeXArk" FontSize="19" FontWeight="SemiBold"/>
+                                    <TextBlock Text="ваши данные — ваши"
+                                               Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <RadioButton Style="{StaticResource NavButtonStyle}"
+                                         IsChecked="{Binding IsDevicesPage, Mode=OneWay}"
+                                         Command="{Binding ShowDevicesCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE8EA;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="17" Width="30"/>
+                                    <TextBlock Text="Устройства" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource NavButtonStyle}"
+                                         IsChecked="{Binding IsBackupPage, Mode=OneWay}"
+                                         Command="{Binding ShowBackupCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE74E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="17" Width="30"/>
+                                    <TextBlock Text="Новая копия" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource NavButtonStyle}"
+                                         IsChecked="{Binding IsMediaPage, Mode=OneWay}"
+                                         Command="{Binding ShowMediaCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xEB9F;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="17" Width="30"/>
+                                    <TextBlock Text="Фото и видео" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource NavButtonStyle}"
+                                         IsChecked="{Binding IsRestorePage, Mode=OneWay}"
+                                         Command="{Binding ShowRestoreCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE777;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="17" Width="30"/>
+                                    <TextBlock Text="Восстановление" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource NavButtonStyle}"
+                                         IsChecked="{Binding IsHistoryPage, Mode=OneWay}"
+                                         Command="{Binding ShowHistoryCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE81C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="17" Width="30"/>
+                                    <TextBlock Text="История" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton Style="{StaticResource NavButtonStyle}"
+                                         IsChecked="{Binding IsSettingsPage, Mode=OneWay}"
+                                         Command="{Binding ShowSettingsCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="17" Width="30"/>
+                                    <TextBlock Text="Настройки" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </RadioButton>
+                        </StackPanel>
+
+                        <StackPanel DockPanel.Dock="Bottom">
+                            <Border Style="{StaticResource SubtleCardStyle}" Padding="13" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentBrush}"
+                                                 VerticalAlignment="Center"/>
+                                        <TextBlock Text="Состояние" FontWeight="SemiBold" Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding StatusText}"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               FontSize="12" TextWrapping="Wrap" Margin="0,7,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <ProgressBar IsIndeterminate="{Binding IsBusy}"/>
+                            <TextBlock Text="{Binding VersionLabel}"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       FontSize="11" HorizontalAlignment="Center" Margin="0,11,0,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <Grid Grid.Column="1" Margin="32,24,32,30">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Grid Margin="0,0,0,22">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="{Binding PageTitle}" Style="{StaticResource PageTitleStyle}"/>
+                            <TextBlock Text="{Binding PageSubtitle}"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       FontSize="13" Margin="1,4,0,0"/>
+                        </StackPanel>
+                        <Button Grid.Column="1"
+                                Style="{StaticResource IconButtonStyle}"
+                                Content="&#xE72C;"
+                                Command="{Binding RefreshCommand}"
+                                ToolTip="Обновить устройства"/>
+                    </Grid>
+
+                    <Grid Grid.Row="1">
+                        <!-- Devices -->
+                        <ScrollViewer Visibility="{Binding DevicesVisibility}"
+                                      VerticalScrollBarVisibility="Auto">
+                            <Grid MaxWidth="1040" HorizontalAlignment="Stretch">
+                                <StackPanel>
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="Подключите Android-телефон"
+                                                           Style="{StaticResource SectionTitleStyle}"/>
+                                                <TextBlock
+                                                    Text="USB определяется автоматически. Для беспроводного подключения используйте Wireless ADB."
+                                                    Foreground="{DynamicResource TextMutedBrush}"
+                                                    TextWrapping="Wrap" Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                            <Border Grid.Column="1" Background="#FF20352F" CornerRadius="20"
+                                                    Padding="14,8" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding DevicesFoundLabel}"
+                                                           Foreground="{DynamicResource AccentBrush}"
+                                                           FontWeight="SemiBold"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+
+                                    <ItemsControl ItemsSource="{Binding Devices}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Width="54" Height="54" CornerRadius="16"
+                                                                Background="{DynamicResource Panel2Brush}"
+                                                                VerticalAlignment="Top">
+                                                            <TextBlock Text="&#xE8EA;"
+                                                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                                       FontSize="25"
+                                                                       Foreground="{DynamicResource AccentBrush}"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1" Margin="16,0,20,0">
+                                                            <TextBlock Text="{Binding DisplayName}"
+                                                                       FontSize="20" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding RomLine}"
+                                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                                       TextTrimming="CharacterEllipsis" Margin="0,4,0,12"/>
+                                                            <WrapPanel>
+                                                                <Border Background="#FF20352F" CornerRadius="9"
+                                                                        Padding="10,5" Margin="0,0,7,0">
+                                                                    <TextBlock Text="{Binding RootLabel}"
+                                                                               Foreground="{DynamicResource AccentBrush}"
+                                                                               FontSize="12"/>
+                                                                </Border>
+                                                                <Border Background="{DynamicResource Panel2Brush}" CornerRadius="9"
+                                                                        Padding="10,5" Margin="0,0,7,0">
+                                                                    <TextBlock Text="{Binding TransportLabel}" FontSize="12"/>
+                                                                </Border>
+                                                                <Border Background="{DynamicResource Panel2Brush}" CornerRadius="9"
+                                                                        Padding="10,5">
+                                                                    <TextBlock Text="{Binding StorageLabel}" FontSize="12"/>
+                                                                </Border>
+                                                            </WrapPanel>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                            <Button Content="Выбрать устройство"
+                                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                                    Command="{Binding DataContext.SelectDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}"/>
+                                                            <Button Content="Установить Agent" Margin="0,8,0,0"
+                                                                    Command="{Binding DataContext.InstallAgentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Margin="0,0,14,0">
+                                                <TextBlock Text="Wireless ADB" Style="{StaticResource SectionTitleStyle}"/>
+                                                <TextBlock Text="IP:порт для сопряжения или подключения"
+                                                           Foreground="{DynamicResource TextMutedBrush}" FontSize="12"/>
+                                                <TextBox Text="{Binding WirelessEndpoint, UpdateSourceTrigger=PropertyChanged}"
+                                                         Margin="0,10,0,0"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Margin="0,0,14,0">
+                                                <TextBlock Text="Код" Style="{StaticResource LabelStyle}" Margin="0,5,0,17"/>
+                                                <TextBox Text="{Binding WirelessPairingCode, UpdateSourceTrigger=PropertyChanged}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Orientation="Horizontal">
+                                                <Button Content="Сопрячь" Command="{Binding PairWirelessCommand}"/>
+                                                <Button Content="Подключить" Command="{Binding ConnectWirelessCommand}"
+                                                        Margin="8,0,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+
+                        <!-- Backup -->
+                        <ScrollViewer Visibility="{Binding BackupVisibility}"
+                                      VerticalScrollBarVisibility="Auto">
+                            <Grid MaxWidth="1040">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.55*"/>
+                                    <ColumnDefinition Width="18"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Что сохранить" Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock Text="Выберите данные, которые попадут в зашифрованную копию."
+                                                       Foreground="{DynamicResource TextMutedBrush}" Margin="0,5,0,18"/>
+                                            <CheckBox Content="Приложения и split APK"
+                                                      IsChecked="{Binding BackupApps}" Margin="0,6"/>
+                                            <CheckBox Content="Приватные данные приложений — нужен root"
+                                                      IsChecked="{Binding BackupAppData}" Margin="0,6"/>
+                                            <CheckBox Content="Документы, загрузки, музыка и аудио"
+                                                      IsChecked="{Binding BackupSharedStorage}" Margin="0,6"/>
+                                            <CheckBox Content="Контакты, SMS, звонки и список аккаунтов"
+                                                      IsChecked="{Binding BackupPersonalData}" Margin="0,6"/>
+                                            <CheckBox Content="Full snapshot — только для той же ROM"
+                                                      IsChecked="{Binding FullMode}" Margin="0,6"/>
+                                            <CheckBox Content="Добавить cache и code_cache"
+                                                      IsChecked="{Binding IncludeCaches}" Margin="0,6"/>
+
+                                            <Grid Margin="0,18,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Приложения" Style="{StaticResource SectionTitleStyle}"
+                                                           FontSize="16"/>
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                    <Button Content="Все" Command="{Binding SelectAllPackagesCommand}"
+                                                            Padding="11,6" MinHeight="32"/>
+                                                    <Button Content="Снять" Command="{Binding SelectNoPackagesCommand}"
+                                                            Padding="11,6" MinHeight="32" Margin="6,0,0,0"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            <Button Content="Загрузить список приложений"
+                                                    Command="{Binding LoadBackupPackagesCommand}"
+                                                    HorizontalAlignment="Left" Margin="0,0,0,8"/>
+                                            <ListBox ItemsSource="{Binding BackupPackages}" MaxHeight="260">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <CheckBox IsChecked="{Binding IsSelected}"
+                                                                      VerticalAlignment="Center"/>
+                                                            <StackPanel Grid.Column="1" Margin="10,0">
+                                                                <TextBlock Text="{Binding Label}" FontWeight="SemiBold"/>
+                                                                <TextBlock Text="{Binding PackageName}"
+                                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                                           FontSize="12"/>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Size}"
+                                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                                       VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2">
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="Локально на этом ПК"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock
+                                                Text="Копия хранится только в выбранной папке. Облако и телеметрия не используются."
+                                                Foreground="{DynamicResource TextMutedBrush}"
+                                                TextWrapping="Wrap" Margin="0,6,0,16"/>
+                                            <TextBlock Text="Папка хранения" Style="{StaticResource LabelStyle}"/>
+                                            <TextBox Text="{Binding RepositoryPath, UpdateSourceTrigger=PropertyChanged}"
+                                                     TextWrapping="Wrap" Margin="0,6,0,8"/>
+                                            <Button Content="Выбрать другую папку"
+                                                    Command="{Binding ChooseRepositoryCommand}"
+                                                    HorizontalAlignment="Left"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="Защита" Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock
+                                                Text="Минимум 10 символов. Пароль не отправляется с компьютера."
+                                                Foreground="{DynamicResource TextMutedBrush}"
+                                                TextWrapping="Wrap" Margin="0,6,0,12"/>
+                                            <PasswordBox PasswordChanged="RepositoryPassword_OnPasswordChanged"/>
+                                            <Button Content="Подготовить локальное хранилище"
+                                                    Command="{Binding CreateRepositoryCommand}"
+                                                    Margin="0,10,0,0"/>
+                                            <TextBlock
+                                                Text="Фото и видео из общей памяти сохраняются через отдельный простой экспорт."
+                                                Foreground="{DynamicResource TextMutedBrush}"
+                                                FontSize="12" TextWrapping="Wrap" Margin="0,14,0,10"/>
+                                            <Button Content="Создать резервную копию"
+                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                    Command="{Binding StartBackupCommand}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+
+                        <!-- Media -->
+                        <ScrollViewer Visibility="{Binding MediaVisibility}"
+                                      VerticalScrollBarVisibility="Auto">
+                            <Grid MaxWidth="920">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.25*"/>
+                                    <ColumnDefinition Width="18"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <Border Width="66" Height="66" CornerRadius="20"
+                                                Background="{StaticResource BrandGradient}"
+                                                HorizontalAlignment="Left">
+                                            <TextBlock Text="&#xEB9F;"
+                                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                       FontSize="29" Foreground="#FF07140F"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="Семейный фотоархив"
+                                                   Style="{StaticResource PageTitleStyle}"
+                                                   FontSize="26" Margin="0,18,0,0"/>
+                                        <TextBlock
+                                            Text="Скопируйте все оригиналы с телефона в обычную папку Windows. Root не нужен."
+                                            Foreground="{DynamicResource TextMutedBrush}"
+                                            FontSize="14" TextWrapping="Wrap" Margin="0,8,0,22"/>
+                                        <TextBlock Text="Куда сохранить" Style="{StaticResource LabelStyle}"/>
+                                        <TextBox Text="{Binding MediaDestination, UpdateSourceTrigger=PropertyChanged}"
+                                                 TextWrapping="Wrap" Margin="0,6,0,10"/>
+                                        <Button Content="Выбрать папку"
+                                                Command="{Binding ChooseMediaDestinationCommand}"
+                                                HorizontalAlignment="Left"/>
+                                        <Button Content="Скопировать все фото и видео"
+                                                Style="{StaticResource PrimaryButtonStyle}"
+                                                Command="{Binding ExportMediaCommand}"
+                                                Margin="0,20,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <StackPanel Grid.Column="2">
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="Безопасно и просто"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock Text="✓ Сохраняются DCIM, Pictures, Movies и папки мессенджеров"
+                                                       TextWrapping="Wrap" Margin="0,14,0,8"/>
+                                            <TextBlock Text="✓ Уже скопированные файлы пропускаются"
+                                                       TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            <TextBlock Text="✓ На телефоне ничего не удаляется"
+                                                       TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                            <TextBlock Text="✓ Работает без root"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <TextBox Text="{Binding MediaExportReportText}"
+                                             IsReadOnly="True"
+                                             TextWrapping="Wrap"
+                                             MinHeight="170"
+                                             VerticalScrollBarVisibility="Auto"/>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+
+                        <!-- Restore -->
+                        <ScrollViewer Visibility="{Binding RestoreVisibility}"
+                                      VerticalScrollBarVisibility="Auto">
+                            <Grid MaxWidth="920">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.15*"/>
+                                    <ColumnDefinition Width="18"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="Выберите резервную копию"
+                                                   Style="{StaticResource SectionTitleStyle}"/>
+                                        <TextBlock
+                                                Text="Перед восстановлением VeXArk проверит ROM, подписи приложений и опасные компоненты."
+                                            Foreground="{DynamicResource TextMutedBrush}"
+                                            TextWrapping="Wrap" Margin="0,6,0,14"/>
+                                        <Button Content="Загрузить список копий"
+                                                Command="{Binding LoadSnapshotsCommand}"
+                                                HorizontalAlignment="Left" Margin="0,0,0,12"/>
+                                        <ListBox ItemsSource="{Binding Snapshots}"
+                                                 SelectedItem="{Binding SelectedSnapshot}"
+                                                 MaxHeight="330">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding Details}"
+                                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                                   FontSize="12"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </StackPanel>
+                                </Border>
+                                <StackPanel Grid.Column="2">
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="Проверка совместимости"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBox Text="{Binding RestoreReportText}"
+                                                     IsReadOnly="True"
+                                                     TextWrapping="Wrap"
+                                                     MinHeight="190"
+                                                     VerticalScrollBarVisibility="Auto"
+                                                     Margin="0,14,0,12"/>
+                                            <CheckBox
+                                                Content="Разрешить downgrade APK после предупреждения"
+                                                IsChecked="{Binding AllowDowngrade}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Button Content="Проверить и восстановить"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Command="{Binding RestoreSnapshotCommand}"/>
+                                    <TextBlock
+                                        Text="Перед изменениями создаётся safety snapshot. Действие подтверждается на телефоне."
+                                        Foreground="{DynamicResource TextMutedBrush}"
+                                        FontSize="12" TextWrapping="Wrap" Margin="2,12,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+
+                        <!-- History -->
+                        <ScrollViewer Visibility="{Binding HistoryVisibility}"
+                                      VerticalScrollBarVisibility="Auto">
+                            <Grid MaxWidth="1000">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.4*"/>
+                                    <ColumnDefinition Width="18"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Резервные копии"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <Button Grid.Column="1" Content="Обновить"
+                                                    Command="{Binding LoadSnapshotsCommand}"
+                                                    Padding="12,7" MinHeight="34"/>
+                                        </Grid>
+                                        <ListBox ItemsSource="{Binding Snapshots}"
+                                                 SelectedItem="{Binding SelectedSnapshot}"
+                                                 MinHeight="290">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Width="38" Height="38" CornerRadius="11"
+                                                                Background="#FF20352F">
+                                                            <TextBlock Text="&#xE74E;"
+                                                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                                       Foreground="{DynamicResource AccentBrush}"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                                                            <TextBlock Text="{Binding Details}"
+                                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                                       FontSize="12"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <WrapPanel Margin="0,14,0,0">
+                                            <Button Content="Проверить целостность"
+                                                    Command="{Binding VerifyRepositoryCommand}"/>
+                                            <Button Content="Удалить" Command="{Binding DeleteSnapshotCommand}"
+                                                    Margin="8,0,0,0"/>
+                                            <Button Content="Очистить место"
+                                                    Command="{Binding GarbageCollectCommand}"
+                                                    Margin="8,0,0,0"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+                                <StackPanel Grid.Column="2">
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="Один локальный файл"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock
+                                                Text="Сохраните выбранную копию в переносимый зашифрованный файл — например, на внешний диск."
+                                                Foreground="{DynamicResource TextMutedBrush}"
+                                                TextWrapping="Wrap" Margin="0,7,0,16"/>
+                                            <Button Content="Сохранить выбранную копию"
+                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                    Command="{Binding ExportSnapshotBundleCommand}"/>
+                                            <Button Content="Открыть файл резервной копии"
+                                                    Command="{Binding ImportSnapshotBundleCommand}"
+                                                    Margin="0,9,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <TextBox Text="{Binding LocalCopyReportText}"
+                                             IsReadOnly="True"
+                                             TextWrapping="Wrap"
+                                             MinHeight="140"
+                                             VerticalScrollBarVisibility="Auto"/>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+
+                        <!-- Settings -->
+                        <ScrollViewer Visibility="{Binding SettingsVisibility}"
+                                      VerticalScrollBarVisibility="Auto">
+                            <Grid MaxWidth="960">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="18"/>
+                                    <ColumnDefinition Width="1*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="Оформление и язык"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock
+                                                Text="Следовать настройкам Windows, выбрать светлую, тёмную или OLED-тему."
+                                                Foreground="{DynamicResource TextMutedBrush}"
+                                                TextWrapping="Wrap" Margin="0,6,0,16"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="1*"/>
+                                                    <ColumnDefinition Width="12"/>
+                                                    <ColumnDefinition Width="1*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="Тема" Style="{StaticResource LabelStyle}"
+                                                               Margin="0,0,0,6"/>
+                                                    <ComboBox ItemsSource="{Binding ThemeOptions}"
+                                                              DisplayMemberPath="Label"
+                                                              SelectedValuePath="Key"
+                                                              SelectedValue="{Binding SelectedTheme, Mode=TwoWay,
+                                                                  UpdateSourceTrigger=PropertyChanged}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="Язык" Style="{StaticResource LabelStyle}"
+                                                               Margin="0,0,0,6"/>
+                                                    <ComboBox ItemsSource="{Binding LanguageOptions}"
+                                                              DisplayMemberPath="Label"
+                                                              SelectedValuePath="Key"
+                                                              SelectedValue="{Binding SelectedLanguage, Mode=TwoWay,
+                                                                  UpdateSourceTrigger=PropertyChanged}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="Локальное хранилище"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock
+                                                Text="Здесь находятся зашифрованные копии и общие дедуплицированные данные."
+                                                Foreground="{DynamicResource TextMutedBrush}"
+                                                TextWrapping="Wrap" Margin="0,6,0,16"/>
+                                            <TextBlock Text="Папка" Style="{StaticResource LabelStyle}"/>
+                                            <TextBox Text="{Binding RepositoryPath, UpdateSourceTrigger=PropertyChanged}"
+                                                     TextWrapping="Wrap" Margin="0,6,0,9"/>
+                                            <Button Content="Выбрать папку"
+                                                    Command="{Binding ChooseRepositoryCommand}"
+                                                    HorizontalAlignment="Left"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Пароль хранилища"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock Text="Не сохраняется в приложении."
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       Margin="0,6,0,12"/>
+                                            <PasswordBox PasswordChanged="RepositoryPassword_OnPasswordChanged"/>
+                                            <Button Content="Создать новое хранилище"
+                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                    Command="{Binding CreateRepositoryCommand}"
+                                                    Margin="0,10,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="Сменить пароль"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock
+                                                Text="Данные не будут перешифровываться целиком — изменится только защита master key."
+                                                Foreground="{DynamicResource TextMutedBrush}"
+                                                TextWrapping="Wrap" Margin="0,6,0,12"/>
+                                            <PasswordBox PasswordChanged="NewRepositoryPassword_OnPasswordChanged"/>
+                                            <Button Content="Сменить пароль"
+                                                    Command="{Binding ChangePasswordCommand}"
+                                                    Margin="0,10,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Ключ восстановления"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock
+                                                Text="24 слова позволяют вернуть доступ, если пароль забыт."
+                                                Foreground="{DynamicResource TextMutedBrush}"
+                                                TextWrapping="Wrap" Margin="0,6,0,12"/>
+                                            <PasswordBox PasswordChanged="RecoveryInput_OnPasswordChanged"/>
+                                            <Button Content="Восстановить доступ"
+                                                    Command="{Binding RecoverRepositoryCommand}"
+                                                    Margin="0,10,0,0"/>
+                                            <TextBlock Text="{Binding RecoveryCode}"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource WarningBrush}" Margin="0,12,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
+
