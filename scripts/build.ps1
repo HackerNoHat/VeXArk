@@ -10,13 +10,46 @@ if (-not $env:VEXARK_KEYSTORE_PATH -and (Test-Path -LiteralPath $localSigning)) 
     . $localSigning
 }
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$dotnet = Join-Path $env:USERPROFILE ".dotnet\dotnet.exe"
-$androidSdk = Join-Path $env:LOCALAPPDATA "Android\Sdk"
-$javaHome = Join-Path $env:USERPROFILE ".gradle\jdks\jetbrains_s_r_o_-21-amd64-windows.2"
+$dotnetCommand = Get-Command dotnet -ErrorAction SilentlyContinue
+$dotnetCandidates = @(
+    (Join-Path $env:USERPROFILE ".dotnet\dotnet.exe")
+    if ($dotnetCommand) { $dotnetCommand.Source }
+) | Select-Object -Unique
+$dotnet = $dotnetCandidates |
+    Where-Object {
+        (Test-Path -LiteralPath $_) -and
+        ((& $_ --list-sdks 2>$null) -match "^9\.")
+    } |
+    Select-Object -First 1
+$androidSdk = if ($env:ANDROID_HOME) {
+    $env:ANDROID_HOME
+} elseif ($env:ANDROID_SDK_ROOT) {
+    $env:ANDROID_SDK_ROOT
+} else {
+    Join-Path $env:LOCALAPPDATA "Android\Sdk"
+}
+$javaHome = if ($env:JAVA_HOME) {
+    $env:JAVA_HOME
+} else {
+    Join-Path $env:USERPROFILE ".gradle\jdks\jetbrains_s_r_o_-21-amd64-windows.2"
+}
 $embedded = Join-Path $projectRoot "src\PhoneBackup.Desktop\Embedded"
 $publish = Join-Path $projectRoot "artifacts\publish"
-$cargo = Join-Path $env:USERPROFILE ".cargo\bin\cargo.exe"
-$ndkHome = Join-Path $androidSdk "ndk\29.0.14206865"
+$cargoCommand = Get-Command cargo -ErrorAction SilentlyContinue
+$cargo = if ($cargoCommand) { $cargoCommand.Source } else { $null }
+if (-not $cargo) { $cargo = Join-Path $env:USERPROFILE ".cargo\bin\cargo.exe" }
+$cargoToolchain = @()
+$rustup = Join-Path $env:USERPROFILE ".cargo\bin\rustup.exe"
+if (-not (Get-Command link.exe -ErrorAction SilentlyContinue) -and
+    (Test-Path -LiteralPath $rustup) -and
+    ((& $rustup toolchain list) -match "stable-x86_64-pc-windows-gnu")) {
+    $cargoToolchain = @("+stable-x86_64-pc-windows-gnu")
+}
+$ndkHome = if ($env:ANDROID_NDK_HOME) {
+    $env:ANDROID_NDK_HOME
+} else {
+    Join-Path $androidSdk "ndk\29.0.14206865"
+}
 
 if (-not (Test-Path $dotnet)) { throw ".NET SDK не найден: $dotnet" }
 if (-not (Test-Path $javaHome)) { throw "JDK 21 не найден: $javaHome" }
@@ -32,7 +65,7 @@ $env:ANDROID_NDK_HOME = $ndkHome
 
 Push-Location (Join-Path $projectRoot "helper")
 try {
-    & $cargo "+stable-x86_64-pc-windows-gnu" "ndk" "--target" "arm64-v8a" `
+    & $cargo @cargoToolchain "ndk" "--target" "arm64-v8a" `
         "--platform" "29" "build" "--release"
     if ($LASTEXITCODE -ne 0) { throw "Сборка Rust root-helper завершилась ошибкой." }
 }

@@ -31,6 +31,9 @@ jobs:
         with:
           targets: aarch64-linux-android
 
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
       - name: Require Android signing secrets
         shell: pwsh
         env:
@@ -83,4 +86,3 @@ jobs:
             artifacts/release/VeXArk.exe
             artifacts/release/VeXArk-Agent.apk
             artifacts/release/SHA256SUMS.txt
-
