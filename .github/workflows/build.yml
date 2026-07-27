@@ -1,0 +1,39 @@
+name: Build
+
+on:
+  push:
+    branches: [main, develop, "feature/**", "fix/**"]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  core-and-desktop:
+    name: Windows and core tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+      - name: Test core
+        run: dotnet test tests/PhoneBackup.Core.Tests/PhoneBackup.Core.Tests.csproj --configuration Release
+      - name: Build desktop
+        run: dotnet build src/PhoneBackup.Desktop/PhoneBackup.Desktop.csproj --configuration Release
+
+  android:
+    name: Android Agent
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - name: Build debug APK
+        working-directory: agent
+        run: ./gradlew :app:assembleDebug --no-daemon
+

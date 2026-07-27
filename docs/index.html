@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#05090d">
+  <meta name="description" content="VeXArk — offline encrypted Android backups for Windows.">
+  <title>VeXArk — Your Android data, yours</title>
+  <link rel="icon" href="assets/vexark-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <header class="nav">
+    <a class="brand" href="#top" aria-label="VeXArk home">
+      <span class="brand-mark"><img src="assets/vexark-mark.svg" alt=""></span>
+      <span>VeXArk</span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#features" data-en="Features" data-ru="Возможности">Features</a>
+      <a href="#security" data-en="Security" data-ru="Безопасность">Security</a>
+      <a href="#screens" data-en="Screens" data-ru="Интерфейс">Screens</a>
+      <a href="https://github.com/VeXEveryOne/VeXArk">GitHub</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="language" type="button" aria-label="Switch language">RU</button>
+      <a class="small-download" href="https://github.com/VeXEveryOne/VeXArk/releases/latest"
+         data-en="Download" data-ru="Скачать">Download</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">
+          <span class="status-dot"></span>
+          <span data-en="Offline Android backup" data-ru="Офлайн-бэкап Android">
+            Offline Android backup
+          </span>
+        </div>
+        <h1 data-en="Your phone.<br>Your data.<br><em>Your rules.</em>"
+            data-ru="Ваш телефон.<br>Ваши данные.<br><em>Ваши правила.</em>">
+          Your phone.<br>Your data.<br><em>Your rules.</em>
+        </h1>
+        <p class="lead"
+           data-en="Encrypted, incremental Android backups on your own Windows PC. No account, no cloud, no telemetry."
+           data-ru="Зашифрованные инкрементальные копии Android на вашем Windows-ПК. Без аккаунта, облака и телеметрии.">
+          Encrypted, incremental Android backups on your own Windows PC.
+          No account, no cloud, no telemetry.
+        </p>
+        <div class="hero-actions">
+          <a class="primary" href="https://github.com/VeXEveryOne/VeXArk/releases/latest/download/VeXArk.exe">
+            <span class="button-icon">⊞</span>
+            <span>
+              <small data-en="Windows 10/11 · x64" data-ru="Windows 10/11 · x64">Windows 10/11 · x64</small>
+              <strong data-en="Download VeXArk" data-ru="Скачать VeXArk">Download VeXArk</strong>
+            </span>
+          </a>
+          <a class="secondary" href="https://github.com/VeXEveryOne/VeXArk/releases/latest/download/VeXArk-Agent.apk">
+            <span class="button-icon">A</span>
+            <span>
+              <small>Android 10–16 · arm64</small>
+              <strong data-en="Agent APK" data-ru="Agent APK">Agent APK</strong>
+            </span>
+          </a>
+        </div>
+        <p class="fine"
+           data-en="Pre-1.0 software. Keep an independent copy of critical data."
+           data-ru="Версия до 1.0. Храните независимую копию важных данных.">
+          Pre-1.0 software. Keep an independent copy of critical data.
+        </p>
+      </div>
+
+      <div class="hero-visual" aria-label="VeXArk desktop preview">
+        <div class="orb orb-a"></div>
+        <div class="orb orb-b"></div>
+        <div class="window">
+          <div class="window-bar">
+            <div class="mini-brand">
+              <img src="assets/vexark-mark.svg" alt="">
+              <span>VeXArk</span>
+            </div>
+            <div class="window-dots"><i></i><i></i><i></i></div>
+          </div>
+          <img src="assets/desktop-dark.png" alt="VeXArk desktop app in dark theme">
+        </div>
+        <div class="privacy-card">
+          <span class="lock">◆</span>
+          <span>
+            <strong>AES-256-GCM</strong>
+            <small data-en="encrypted locally" data-ru="локальное шифрование">encrypted locally</small>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <section class="trust-strip" aria-label="Technology highlights">
+      <span>Windows portable</span><i></i>
+      <span>Android 10–16</span><i></i>
+      <span>Argon2id</span><i></i>
+      <span>FastCDC + BLAKE3</span><i></i>
+      <span>GPLv3</span>
+    </section>
+
+    <section id="features" class="section">
+      <div class="section-heading">
+        <span class="kicker" data-en="Built for ownership" data-ru="Полный контроль">
+          Built for ownership
+        </span>
+        <h2 data-en="A backup tool that stays out of your way."
+            data-ru="Резервная копия без лишней херни.">
+          A backup tool that stays out of your way.
+        </h2>
+        <p data-en="Start without root. Add deep app-data snapshots only when you choose to."
+           data-ru="Начните без root. Добавляйте приватные данные приложений только когда сами решите.">
+          Start without root. Add deep app-data snapshots only when you choose to.
+        </p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature feature-wide">
+          <div class="feature-icon">↯</div>
+          <div>
+            <h3 data-en="Incremental by default" data-ru="Инкрементально по умолчанию">
+              Incremental by default
+            </h3>
+            <p data-en="Unchanged files and blocks are reused. A second snapshot does not become a second full copy."
+               data-ru="Неизменившиеся файлы и блоки переиспользуются. Второй снимок не превращается во вторую полную копию.">
+              Unchanged files and blocks are reused. A second snapshot does not become a second full copy.
+            </p>
+          </div>
+          <div class="chunk-art" aria-hidden="true">
+            <span></span><span></span><span class="new"></span><span></span><span></span>
+          </div>
+        </article>
+        <article class="feature">
+          <div class="feature-icon">▣</div>
+          <h3 data-en="No-root media copy" data-ru="Фото и видео без root">No-root media copy</h3>
+          <p data-en="Copy every original into a normal Windows folder, preserve paths and skip duplicates."
+             data-ru="Копируйте все оригиналы в обычную папку Windows, сохраняйте пути и пропускайте дубликаты.">
+            Copy every original into a normal Windows folder, preserve paths and skip duplicates.
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-icon">◇</div>
+          <h3 data-en="Portable .vexark files" data-ru="Переносимые файлы .vexark">
+            Portable .vexark files
+          </h3>
+          <p data-en="Take an encrypted snapshot to another PC or an external drive as one file."
+             data-ru="Переносите зашифрованный снимок на другой ПК или внешний диск одним файлом.">
+            Take an encrypted snapshot to another PC or an external drive as one file.
+          </p>
+        </article>
+        <article class="feature">
+          <div class="feature-icon">⌁</div>
+          <h3 data-en="USB and Wireless ADB" data-ru="USB и Wireless ADB">
+            USB and Wireless ADB
+          </h3>
+          <p data-en="One physical phone appears once, with USB preferred automatically."
+             data-ru="Один физический телефон показывается один раз, USB выбирается автоматически.">
+            One physical phone appears once, with USB preferred automatically.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section id="security" class="section security">
+      <div class="security-copy">
+        <span class="kicker" data-en="Security is the architecture" data-ru="Безопасность в архитектуре">
+          Security is the architecture
+        </span>
+        <h2 data-en="Encrypted before it becomes history."
+            data-ru="Шифрование до появления снимка в истории.">
+          Encrypted before it becomes history.
+        </h2>
+        <p data-en="The Agent streams data. Compression, encryption and repository writes happen on your PC. Interrupted backups are never published as valid snapshots."
+           data-ru="Agent передаёт поток. Сжатие, шифрование и запись происходят на ПК. Прерванная операция не публикуется как готовый снимок.">
+          The Agent streams data. Compression, encryption and repository writes
+          happen on your PC. Interrupted backups are never published as valid snapshots.
+        </p>
+        <a class="text-link" href="THREAT_MODEL.md"
+           data-en="Read the threat model →" data-ru="Прочитать модель угроз →">
+          Read the threat model →
+        </a>
+      </div>
+      <div class="security-list">
+        <div><b>01</b><span><strong>Argon2id</strong><small data-en="password hardening" data-ru="защита пароля">password hardening</small></span></div>
+        <div><b>02</b><span><strong>AES-256-GCM</strong><small data-en="per-object encryption" data-ru="шифрование объектов">per-object encryption</small></span></div>
+        <div><b>03</b><span><strong>Ed25519</strong><small data-en="trusted desktop pairing" data-ru="сопряжение с ПК">trusted desktop pairing</small></span></div>
+        <div><b>04</b><span><strong>24 words</strong><small data-en="independent recovery key" data-ru="отдельный recovery key">independent recovery key</small></span></div>
+      </div>
+    </section>
+
+    <section id="screens" class="section screens">
+      <div class="section-heading">
+        <span class="kicker" data-en="Made for your screen" data-ru="Под ваш экран">
+          Made for your screen
+        </span>
+        <h2 data-en="System. Light. Dark. OLED."
+            data-ru="Системная. Светлая. Тёмная. OLED.">
+          System. Light. Dark. OLED.
+        </h2>
+        <p data-en="English by default. Russian one click away."
+           data-ru="Русский включается одним нажатием.">
+          English by default. Russian one click away.
+        </p>
+      </div>
+      <div class="screen-tabs" role="tablist" aria-label="Theme previews">
+        <button class="active" data-image="assets/desktop-light.png">Light</button>
+        <button data-image="assets/desktop-dark.png">Dark</button>
+        <button data-image="assets/desktop-oled.png">OLED</button>
+        <button data-image="assets/desktop-russian.png">Русский</button>
+      </div>
+      <div class="screen-frame">
+        <img src="assets/desktop-light.png" alt="VeXArk theme preview">
+      </div>
+    </section>
+
+    <section class="cta">
+      <img src="assets/vexark-mark.svg" alt="">
+      <div>
+        <h2 data-en="Keep the only cloud you need under your desk."
+            data-ru="Храните нужное облако у себя под столом.">
+          Keep the only cloud you need under your desk.
+        </h2>
+        <p data-en="Open source. Offline. Built for recovery, not lock-in."
+           data-ru="Open source. Офлайн. Для восстановления, а не привязки.">
+          Open source. Offline. Built for recovery, not lock-in.
+        </p>
+      </div>
+      <a class="primary compact" href="https://github.com/VeXEveryOne/VeXArk/releases/latest"
+         data-en="Get VeXArk" data-ru="Скачать VeXArk">Get VeXArk</a>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand" href="#top"><span class="brand-mark"><img src="assets/vexark-mark.svg" alt=""></span><span>VeXArk</span></a>
+    <p data-en="GPL-3.0-only · no telemetry · your data stays yours"
+       data-ru="GPL-3.0-only · без телеметрии · ваши данные остаются вашими">
+      GPL-3.0-only · no telemetry · your data stays yours
+    </p>
+    <div>
+      <a href="https://github.com/VeXEveryOne/VeXArk">GitHub</a>
+      <a href="https://github.com/VeXEveryOne/VeXArk/releases">Releases</a>
+      <a href="README.ru.md">Русский</a>
+    </div>
+  </footer>
+  <script src="site.js"></script>
+</body>
+</html>
+
