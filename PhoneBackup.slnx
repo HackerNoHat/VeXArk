@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/PhoneBackup.Core/PhoneBackup.Core.csproj" />
+  <Project Path="src/PhoneBackup.Desktop/PhoneBackup.Desktop.csproj" />
+  <Project Path="tests/PhoneBackup.Core.Tests/PhoneBackup.Core.Tests.csproj" />
+</Solution>
+

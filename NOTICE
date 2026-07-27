@@ -1,0 +1,9 @@
+VeXArk
+Copyright (C) 2026 VeXArk contributors
+
+SPDX-License-Identifier: GPL-3.0-only
+
+This project is informed by the architecture and workflows of Android-DataBackup
+and Open Android Backup. No Neo Backup source code is included.
+
+Third-party dependencies retain their respective copyright and license terms.

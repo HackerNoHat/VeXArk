@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://phonebackup.local/protocol/v1/snapshot.schema.json",
+  "title": "PhoneBackup Snapshot Manifest v1",
+  "type": "object",
+  "required": [
+    "formatVersion", "snapshotId", "createdAtUtc", "mode", "device",
+    "components", "excludedMedia", "purpose"
+  ],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "snapshotId": { "type": "string" },
+    "createdAtUtc": { "type": "string", "format": "date-time" },
+    "mode": { "enum": ["Portable", "Full", 0, 1] },
+    "device": { "type": "object" },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "files", "plainBytes", "storedBytes"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": {
+            "enum": [
+              "apk", "app-data", "shared-storage", "personal-data",
+              "personal-data-report", "account-inventory", "system-state", "full"
+            ]
+          },
+          "files": { "type": "array", "items": { "$ref": "#/$defs/fileEntry" } },
+          "plainBytes": { "type": "integer", "minimum": 0 },
+          "storedBytes": { "type": "integer", "minimum": 0 },
+          "package": { "type": ["object", "null"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "excludedMedia": { "type": "object" },
+    "purpose": { "enum": ["manual", "safety"] }
+  },
+  "$defs": {
+    "fileEntry": {
+      "type": "object",
+      "required": [
+        "relativePath", "kind", "size", "modifiedUnixNanos",
+        "mode", "uid", "gid"
+      ],
+      "properties": {
+        "relativePath": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["file", "directory", "symlink", "special"] },
+        "size": { "type": "integer", "minimum": 0 },
+        "modifiedUnixNanos": { "type": "integer" },
+        "mode": { "type": "integer" },
+        "uid": { "type": "integer" },
+        "gid": { "type": "integer" },
+        "selinuxLabel": { "type": ["string", "null"] },
+        "linkTarget": { "type": ["string", "null"] },
+        "contentHash": { "type": ["string", "null"] },
+        "chunks": { "type": ["array", "null"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
