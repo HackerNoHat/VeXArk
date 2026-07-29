@@ -32,6 +32,8 @@ internal static class Program
 
     private static async Task<int> CaptureAsync(string[] args)
     {
+        SynchronizationContext.SetSynchronizationContext(
+            new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
         if (args.Length is < 1 or > 4)
         {
             Console.Error.WriteLine(
@@ -59,7 +61,7 @@ internal static class Program
             var command = args[1] switch
             {
                 "backup" => viewModel.ShowBackupCommand,
-                "media" => viewModel.ShowMediaCommand,
+                "media" or "media-benchmark" => viewModel.ShowMediaCommand,
                 "restore" => viewModel.ShowRestoreCommand,
                 "history" => viewModel.ShowHistoryCommand,
                 "settings" => viewModel.ShowSettingsCommand,
@@ -72,6 +74,16 @@ internal static class Program
         LocalizationManager.ApplyLanguage(args.Length >= 4 ? args[3] : "en");
         if (window.DataContext is MainViewModel localizedViewModel)
             localizedViewModel.RefreshLocalization();
+        if (args.Length >= 2 &&
+            args[1] == "media-benchmark" &&
+            window.DataContext is MainViewModel benchmarkViewModel &&
+            benchmarkViewModel.SelectedDevice is not null)
+        {
+            benchmarkViewModel.TestConnectionCommand.Execute(null);
+            PumpDispatcherUntil(
+                () => !benchmarkViewModel.IsBusy,
+                TimeSpan.FromSeconds(60));
+        }
         PumpDispatcher(TimeSpan.FromMilliseconds(150));
         window.UpdateLayout();
 
@@ -116,5 +128,14 @@ internal static class Program
         };
         timer.Start();
         Dispatcher.PushFrame(frame);
+    }
+
+    private static void PumpDispatcherUntil(Func<bool> condition, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!condition() && DateTime.UtcNow < deadline)
+            PumpDispatcher(TimeSpan.FromMilliseconds(100));
+        if (!condition())
+            throw new TimeoutException("UI benchmark did not finish in time.");
     }
 }

@@ -11,6 +11,17 @@ and the project uses semantic versioning.
 - Stable signing and broader rooted-device validation.
 - Additional restore fixtures across Android 10–16 and multiple ROM families.
 
+## [0.7.1] — 2026-07-30
+
+### Added
+
+- Built-in Desktop connection benchmark for testing replacement USB cables and
+  motherboard ports without copying personal files.
+- Native Windows USB link detection for Low/Full/High/SuperSpeed negotiation,
+  including a warning when a USB 3-capable phone falls back to USB 2.0.
+- A 256 MiB integrity-checked comparison of ADB and encrypted Fast Wi-Fi with
+  a transport recommendation and estimated times for 10, 50 and 100 GiB.
+
 ## [0.7.0] — 2026-07-30
 
 ### Added
@@ -153,7 +164,8 @@ and the project uses semantic versioning.
 - Android 10–16 no-root inventory and capability probing.
 - Versioned length-prefixed loopback protocol over `adb forward`.
 
-[Unreleased]: https://github.com/VeXEveryOne/VeXArk/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/VeXEveryOne/VeXArk/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.1
 [0.7.0]: https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.0
 [0.6.1]: https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.6.1
 [0.6.0]: https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.6.0

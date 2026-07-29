@@ -82,6 +82,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         "Выбранный снимок можно сохранить одним зашифрованным файлом.";
     private string _mediaLiveStats =
         "Перед копированием Auto проверит ADB, Fast Wi-Fi и диск назначения.";
+    private ConnectionBenchmarkResult? _connectionBenchmark;
+    private string _connectionTestStatus =
+        "Подключите телефон и запустите тест. Реальные файлы не копируются.";
+    private double _connectionTestProgress;
+    private bool _isConnectionTestRunning;
 
     public ObservableCollection<DeviceViewModel> Devices { get; } = [];
     public ObservableCollection<string> SnapshotLines { get; } = [];
@@ -128,14 +133,26 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set => Set(ref _statusText, value);
     }
     public string AppVersion =>
-        typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.7.0";
+        typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.7.1";
     public bool IsBusy { get => _isBusy; set => Set(ref _isBusy, value); }
     public DeviceViewModel? SelectedDevice
     {
         get => _selectedDevice;
         set
         {
+            var previousId = _selectedDevice?.Inventory.StableId;
             Set(ref _selectedDevice, value);
+            if (!string.Equals(
+                    previousId,
+                    value?.Inventory.StableId,
+                    StringComparison.Ordinal))
+            {
+                _connectionBenchmark = null;
+                _connectionTestProgress = 0;
+                _connectionTestStatus =
+                    "Подключите телефон и запустите тест. Реальные файлы не копируются.";
+                RaiseConnectionBenchmark();
+            }
             Raise(nameof(PageSubtitle));
             Raise(nameof(SelectedMediaTransport));
         }
@@ -165,6 +182,44 @@ public sealed class MainViewModel : INotifyPropertyChanged
         get => LocalizationManager.T(_mediaLiveStats);
         set => Set(ref _mediaLiveStats, value);
     }
+    public string ConnectionTestStatus
+    {
+        get => LocalizationManager.T(_connectionTestStatus);
+        set => Set(ref _connectionTestStatus, value);
+    }
+    public double ConnectionTestProgress
+    {
+        get => _connectionTestProgress;
+        set => Set(ref _connectionTestProgress, Math.Clamp(value, 0, 100));
+    }
+    public bool IsConnectionTestRunning
+    {
+        get => _isConnectionTestRunning;
+        set => Set(ref _isConnectionTestRunning, value);
+    }
+    public string UsbLinkMetric => _connectionBenchmark is null
+        ? "—"
+        : FormatUsbLink(_connectionBenchmark.Usb.LinkSpeed);
+    public string UsbLinkCaption => _connectionBenchmark is null
+        ? LocalizationManager.T("Физический режим кабеля")
+        : DescribeUsbLink(_connectionBenchmark.Usb);
+    public string AdbSpeedMetric => _connectionBenchmark is null
+        ? "—"
+        : FormatRate(_connectionBenchmark.AdbBytesPerSecond);
+    public string AdbSpeedCaption => LocalizationManager.T("Реальная скорость через ADB");
+    public string FastLanSpeedMetric => _connectionBenchmark is null ||
+                                        _connectionBenchmark.FastLanBytesPerSecond <= 0
+        ? "—"
+        : FormatRate(_connectionBenchmark.FastLanBytesPerSecond);
+    public string FastLanSpeedCaption => _connectionBenchmark?.FastLanError is { Length: > 0 }
+        ? LocalizationManager.T("Fast Wi-Fi сейчас недоступен")
+        : LocalizationManager.T("Зашифрованный канал по локальной сети");
+    public string ConnectionRecommendation => _connectionBenchmark is null
+        ? LocalizationManager.T("VeXArk сравнит подключения и выберет самое быстрое.")
+        : DescribeRecommendation(_connectionBenchmark);
+    public string ConnectionEstimate => _connectionBenchmark is null
+        ? LocalizationManager.T("После теста появится оценка времени для 10, 50 и 100 ГБ.")
+        : BuildTransferEstimate(_connectionBenchmark.Assessment.EffectiveBytesPerSecond);
 
     public bool BackupApps { get; set; } = true;
     public bool BackupAppData { get; set; } = true;
@@ -273,6 +328,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand ChooseRepositoryCommand { get; }
     public RelayCommand ChooseMediaDestinationCommand { get; }
     public AsyncRelayCommand ExportMediaCommand { get; }
+    public AsyncRelayCommand TestConnectionCommand { get; }
     public AsyncRelayCommand ExportSnapshotBundleCommand { get; }
     public AsyncRelayCommand ImportSnapshotBundleCommand { get; }
 
@@ -313,6 +369,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RecoverRepositoryCommand = new(RecoverRepositoryAsync);
         LoadDesktopSettings();
         ExportMediaCommand = new(ExportMediaAsync);
+        TestConnectionCommand = new(TestConnectionAsync);
         ExportSnapshotBundleCommand = new(ExportSnapshotBundleAsync);
         ImportSnapshotBundleCommand = new(ImportSnapshotBundleAsync);
         ChooseMediaDestinationCommand = new(_ =>
@@ -637,6 +694,88 @@ public sealed class MainViewModel : INotifyPropertyChanged
             StatusText = report.FailedFiles == 0
                 ? $"Фото и видео скопированы: {report.CopiedFiles}, пропущено: {report.SkippedFiles}"
                 : $"Копирование завершено с ошибками: {report.FailedFiles}";
+        });
+    }
+
+    private async Task TestConnectionAsync(object? _)
+    {
+        if (SelectedDevice is null)
+        {
+            MessageBox.Show(LocalizationManager.T("Сначала выберите устройство."));
+            return;
+        }
+
+        await BusyAsync("Тест подключения…", async () =>
+        {
+            IsConnectionTestRunning = true;
+            ConnectionTestProgress = 0;
+            _connectionBenchmark = null;
+            RaiseConnectionBenchmark();
+            try
+            {
+                var serial = SelectedDevice.PreferredSerial;
+                if (!await _adb.IsAgentInstalledAsync(serial))
+                    throw new InvalidOperationException(LocalizationManager.T(
+                        "Android Agent не установлен. Установите его на странице «Устройства»."));
+
+                await using var agent = await AgentClient.ConnectAsync(_adb, serial);
+                if (!await agent.PairWithApprovalAsync(
+                        TimeSpan.FromSeconds(60),
+                        new Progress<string>(text => ConnectionTestStatus = text)))
+                    throw new UnauthorizedAccessException(LocalizationManager.T(
+                        "Компьютер не подтверждён на телефоне."));
+
+                var progress = new Progress<ConnectionBenchmarkProgress>(value =>
+                {
+                    var ratio = value.TotalBytes <= 0
+                        ? 0
+                        : Math.Clamp(
+                            value.CompletedBytes / (double)value.TotalBytes,
+                            0,
+                            1);
+                    switch (value.Stage)
+                    {
+                        case "usb":
+                            ConnectionTestProgress = 2;
+                            ConnectionTestStatus =
+                                "Windows проверяет физический режим USB…";
+                            break;
+                        case "adb":
+                            ConnectionTestProgress = 5 + ratio * 43;
+                            ConnectionTestStatus =
+                                $"Тест ADB: {ratio:P0}";
+                            break;
+                        case "fast-lan":
+                            ConnectionTestProgress = 52 + ratio * 46;
+                            ConnectionTestStatus =
+                                $"Тест Fast Wi-Fi: {ratio:P0}";
+                            break;
+                        case "complete":
+                            ConnectionTestProgress = 100;
+                            ConnectionTestStatus = "Тест подключения завершён.";
+                            break;
+                    }
+                });
+
+                _connectionBenchmark = await new ConnectionBenchmarkCoordinator().RunAsync(
+                    agent,
+                    serial,
+                    progress: progress);
+                RaiseConnectionBenchmark();
+                StatusText = _connectionBenchmark.Assessment.RecommendedTransport ==
+                             MediaTransportMode.FastLan
+                    ? $"Fast Wi-Fi быстрее: {FormatRate(_connectionBenchmark.FastLanBytesPerSecond)}"
+                    : $"ADB быстрее: {FormatRate(_connectionBenchmark.AdbBytesPerSecond)}";
+            }
+            catch (Exception error)
+            {
+                ConnectionTestStatus = $"Тест не выполнен: {error.Message}";
+                throw;
+            }
+            finally
+            {
+                IsConnectionTestRunning = false;
+            }
         });
     }
 
@@ -965,10 +1104,104 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private static string FormatRate(double value) =>
         value <= 0 ? "—" : $"{value / 1024d / 1024:0.0} MB/s";
 
+    private static string FormatUsbLink(UsbLinkSpeed speed) => speed switch
+    {
+        UsbLinkSpeed.LowSpeed => "USB 1.0",
+        UsbLinkSpeed.FullSpeed => "USB 1.1",
+        UsbLinkSpeed.HighSpeed => "USB 2.0",
+        UsbLinkSpeed.SuperSpeed => "USB 3.x",
+        UsbLinkSpeed.SuperSpeedPlus => "USB 3.2+",
+        _ => "USB —"
+    };
+
+    private static string DescribeUsbLink(UsbConnectionInfo usb)
+    {
+        if (!usb.Available)
+            return LocalizationManager.IsRussian
+                ? $"Режим не определён{(string.IsNullOrWhiteSpace(usb.Detail) ? string.Empty : $": {usb.Detail}")}"
+                : $"Link unavailable{(string.IsNullOrWhiteSpace(usb.Detail) ? string.Empty : $": {usb.Detail}")}";
+        return usb.LinkSpeed switch
+        {
+            UsbLinkSpeed.LowSpeed => "Low-Speed • 1.5 Mbit/s",
+            UsbLinkSpeed.FullSpeed => "Full-Speed • 12 Mbit/s",
+            UsbLinkSpeed.HighSpeed when usb.DeviceSuperSpeedCapable =>
+                LocalizationManager.IsRussian
+                    ? "High-Speed • 480 Mbit/s • телефон поддерживает USB 3.x"
+                    : "High-Speed • 480 Mbit/s • phone supports USB 3.x",
+            UsbLinkSpeed.HighSpeed => "High-Speed • 480 Mbit/s",
+            UsbLinkSpeed.SuperSpeed => "SuperSpeed • 5 Gbit/s",
+            UsbLinkSpeed.SuperSpeedPlus => "SuperSpeedPlus • 10+ Gbit/s",
+            _ => LocalizationManager.IsRussian ? "Скорость не определена" : "Speed unavailable"
+        };
+    }
+
+    private static string DescribeRecommendation(ConnectionBenchmarkResult result)
+    {
+        var recommended = result.Assessment.RecommendedTransport == MediaTransportMode.FastLan
+            ? "Fast Wi-Fi"
+            : "ADB";
+        var gain = result.AdbBytesPerSecond > 0 && result.FastLanBytesPerSecond > 0
+            ? Math.Abs(result.FastLanBytesPerSecond / result.AdbBytesPerSecond - 1) * 100
+            : 0;
+        if (LocalizationManager.IsRussian)
+        {
+            return result.Assessment.LimitReason switch
+            {
+                ConnectionLimitReason.Usb2Link =>
+                    $"{recommended} быстрее. Кабель согласовался как USB 2.0, хотя телефон умеет USB 3.x.",
+                ConnectionLimitReason.FastLanFaster =>
+                    $"Рекомендуется Fast Wi-Fi — он быстрее ADB примерно на {gain:0}%.",
+                ConnectionLimitReason.WirelessUnavailable =>
+                    "Используйте ADB: Fast Wi-Fi сейчас недоступен.",
+                ConnectionLimitReason.Comparable =>
+                    $"Рекомендуется {recommended}: разница скоростей небольшая.",
+                _ => $"Рекомендуемый транспорт: {recommended}."
+            };
+        }
+        return result.Assessment.LimitReason switch
+        {
+            ConnectionLimitReason.Usb2Link =>
+                $"{recommended} is faster. The cable negotiated USB 2.0 although the phone supports USB 3.x.",
+            ConnectionLimitReason.FastLanFaster =>
+                $"Fast Wi-Fi is recommended — about {gain:0}% faster than ADB.",
+            ConnectionLimitReason.WirelessUnavailable =>
+                "Use ADB: Fast Wi-Fi is currently unavailable.",
+            ConnectionLimitReason.Comparable =>
+                $"{recommended} is recommended: the speed difference is small.",
+            _ => $"Recommended transport: {recommended}."
+        };
+    }
+
+    private static string BuildTransferEstimate(double bytesPerSecond)
+    {
+        string Estimate(long gib)
+        {
+            var duration = ConnectionBenchmarkPolicy.Estimate(
+                gib * 1024L * 1024 * 1024,
+                bytesPerSecond);
+            return duration is null ? "—" : $"~{FormatDuration(duration.Value)}";
+        }
+        return $"10 GB {Estimate(10)}  •  50 GB {Estimate(50)}  •  100 GB {Estimate(100)}";
+    }
+
     private static string FormatDuration(TimeSpan value) =>
         value.TotalHours >= 1
             ? $"{(int)value.TotalHours}:{value.Minutes:00}:{value.Seconds:00}"
             : $"{value.Minutes}:{value.Seconds:00}";
+
+    private void RaiseConnectionBenchmark()
+    {
+        Raise(nameof(ConnectionTestStatus));
+        Raise(nameof(ConnectionTestProgress));
+        Raise(nameof(UsbLinkMetric));
+        Raise(nameof(UsbLinkCaption));
+        Raise(nameof(AdbSpeedMetric));
+        Raise(nameof(AdbSpeedCaption));
+        Raise(nameof(FastLanSpeedMetric));
+        Raise(nameof(FastLanSpeedCaption));
+        Raise(nameof(ConnectionRecommendation));
+        Raise(nameof(ConnectionEstimate));
+    }
 
     public void RefreshLocalization()
     {
@@ -987,6 +1220,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Raise(nameof(SelectedMediaTransport));
         Raise(nameof(SelectedLanguage));
         Raise(nameof(SelectedTheme));
+        RaiseConnectionBenchmark();
         PopulateSnapshots(Snapshots.Select(x => x.Manifest).ToArray());
         var selectedDeviceId = SelectedDevice?.Inventory.StableId;
         var devices = Devices.Select(x => x.Inventory).ToArray();

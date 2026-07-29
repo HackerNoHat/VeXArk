@@ -4,13 +4,16 @@ using System.Text.Json;
 using PhoneBackup.Core;
 using PhoneBackup.Desktop;
 
-if (args.Length != 1)
+if (args.Length is < 1 or > 2 ||
+    args.Length == 2 && args[1] != "--benchmark")
 {
-    Console.Error.WriteLine("Usage: PhoneBackup.Smoke <exact-adb-serial>");
+    Console.Error.WriteLine(
+        "Usage: PhoneBackup.Smoke <exact-adb-serial> [--benchmark]");
     return 2;
 }
 
 var adb = new AdbService();
+var usb = UsbConnectionDiagnostics.Query(args[0]);
 await using var agent = await AgentClient.ConnectAsync(adb, args[0]);
 if (!await agent.PairWithApprovalAsync(
         TimeSpan.FromSeconds(30),
@@ -31,6 +34,15 @@ if (!capabilities.Contains("media-export") ||
 {
     Console.Error.WriteLine("Agent does not expose the new capabilities.");
     return 4;
+}
+
+if (args.Length == 2)
+{
+    var benchmark = await new ConnectionBenchmarkCoordinator().RunAsync(
+        agent,
+        args[0]);
+    Console.WriteLine(JsonSerializer.Serialize(benchmark));
+    return 0;
 }
 
 var mediaCapability = await agent.GetMediaCapabilityAsync();
@@ -147,6 +159,10 @@ if (!fastSessionClosed)
 Console.WriteLine(JsonSerializer.Serialize(new
 {
     paired = true,
+    usb.Available,
+    usb.LinkSpeed,
+    usb.DeviceSuperSpeedCapable,
+    usb.DeviceSuperSpeedPlusCapable,
     mediaCapability.Images,
     mediaCapability.Videos,
     mediaCount = count,

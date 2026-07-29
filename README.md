@@ -5,12 +5,12 @@
   <p>
     <a href="docs/README.ru.md">Русский</a> ·
     <a href="https://vexeveryone.github.io/VeXArk/">Website</a> ·
-    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.0">Downloads</a> ·
+    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.1">Downloads</a> ·
     <a href="CHANGELOG.md">Changelog</a> ·
     <a href="SECURITY.md">Security</a>
   </p>
   <p>
-    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.0">
+    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.1">
       <img alt="GitHub release" src="https://img.shields.io/github/v/release/VeXEveryOne/VeXArk?include_prereleases&style=flat-square">
     </a>
     <a href="https://github.com/VeXEveryOne/VeXArk/actions/workflows/build.yml">
@@ -39,9 +39,9 @@ when Magisk, KernelSU or APatch is available.
 
 | Platform | Package | Requirements |
 | --- | --- | --- |
-| Windows | [Download `VeXArk.exe`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.0/VeXArk.exe) | Windows 10/11 x64 |
-| Android | [Download `VeXArk-Agent.apk`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.0/VeXArk-Agent.apk) | Android 10–16, arm64-v8a |
-| Checksums | [`SHA256SUMS.txt`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.0/SHA256SUMS.txt) | Verify before installing |
+| Windows | [Download `VeXArk.exe`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.1/VeXArk.exe) | Windows 10/11 x64 |
+| Android | [Download `VeXArk-Agent.apk`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.1/VeXArk-Agent.apk) | Android 10–16, arm64-v8a |
+| Checksums | [`SHA256SUMS.txt`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.1/SHA256SUMS.txt) | Verify before installing |
 
 The Windows build is self-contained and portable. It bundles the matching Agent
 APK and Android Platform Tools; neither an installer nor administrator rights are
@@ -54,6 +54,9 @@ required.
   ordinary Windows folder while preserving directories and skipping duplicates.
 - **Fast Wi-Fi and resume.** VeXArk benchmarks ADB, encrypted direct LAN and the
   destination disk, copies with up to four workers and resumes interrupted files.
+- **Cable and port tester.** The Desktop client shows the negotiated USB link,
+  measures ADB and Fast Wi-Fi without reading personal files, recommends the
+  faster transport and estimates transfer time before a long copy.
 - **Encrypted portable backups.** Export a selected snapshot as one `.vexark`
   file and import it on another PC.
 - **Incremental storage.** FastCDC chunking, BLAKE3 addressing and deduplication
@@ -120,8 +123,9 @@ migration.
 2. Start `VeXArk.exe`.
 3. Connect the phone and approve the Android debugging prompt.
 4. Install or update VeXArk Agent from the Devices page.
-5. Choose a repository folder and create a password plus recovery key.
-6. Start with a small backup and verify it from History.
+5. Open Photos & videos and run Connection test whenever you change a cable or port.
+6. Choose a repository folder and create a password plus recovery key.
+7. Start with a small backup and verify it from History.
 
 Root is optional. VeXArk does not patch boot images or install a root provider.
 

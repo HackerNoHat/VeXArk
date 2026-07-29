@@ -5,7 +5,7 @@
   <p>
     <a href="../README.md">English</a> ·
     <a href="https://vexeveryone.github.io/VeXArk/">Сайт</a> ·
-    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.0">Скачать</a> ·
+    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.1">Скачать</a> ·
     <a href="../CHANGELOG.md">История версий</a>
   </p>
 </div>
@@ -25,9 +25,9 @@ root-helper. Без root доступны инвентаризация, APK/spli
 
 | Платформа | Файл | Требования |
 | --- | --- | --- |
-| Windows | [Скачать `VeXArk.exe`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.0/VeXArk.exe) | Windows 10/11 x64 |
-| Android | [Скачать `VeXArk-Agent.apk`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.0/VeXArk-Agent.apk) | Android 10–16, arm64-v8a |
-| Хеши | [`SHA256SUMS.txt`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.0/SHA256SUMS.txt) | Для проверки файлов |
+| Windows | [Скачать `VeXArk.exe`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.1/VeXArk.exe) | Windows 10/11 x64 |
+| Android | [Скачать `VeXArk-Agent.apk`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.1/VeXArk-Agent.apk) | Android 10–16, arm64-v8a |
+| Хеши | [`SHA256SUMS.txt`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.1/SHA256SUMS.txt) | Для проверки файлов |
 
 Windows-клиент portable: внутри уже лежат совместимый Agent и ADB. Установка и
 права администратора не нужны.
@@ -37,6 +37,8 @@ Windows-клиент portable: внутри уже лежат совместим
 - Полностью офлайн, без аккаунта, телеметрии и облака.
 - Копирование всех фото и видео в обычную папку Windows без root.
 - Fast Wi-Fi с автоматическим сравнением скорости ADB, локальной сети и диска.
+- Встроенный тест кабелей и портов: negotiated USB-режим, реальная скорость ADB
+  и Fast Wi-Fi, рекомендация транспорта и оценка времени без чтения личных файлов.
 - До четырёх параллельных worker-ов и продолжение прерванных файлов.
 - Зашифрованные переносимые файлы `.vexark`.
 - Инкрементальные снимки и дедупликация неизменившихся блоков.
@@ -73,8 +75,9 @@ passkeys никогда не копируются. Для Google-аккаунт�
 2. Запустите `VeXArk.exe`.
 3. Подключите телефон и подтвердите ADB.
 4. Установите Agent со страницы «Устройства».
-5. Выберите папку репозитория, пароль и сохраните recovery key.
-6. Начните с небольшой копии и проверьте её в истории.
+5. На странице «Фото и видео» проверяйте скорость после замены кабеля или порта.
+6. Выберите папку репозитория, пароль и сохраните recovery key.
+7. Начните с небольшой копии и проверьте её в истории.
 
 VeXArk не устанавливает root и не патчит boot image.
 

@@ -414,7 +414,119 @@
                                     <ColumnDefinition Width="18"/>
                                     <ColumnDefinition Width="1*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Style="{StaticResource CardStyle}">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="18"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Border Grid.ColumnSpan="3"
+                                        Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock Text="Тест подключения"
+                                                           Style="{StaticResource SectionTitleStyle}"/>
+                                                <TextBlock
+                                                    Text="Меняйте кабели и порты без догадок: VeXArk покажет физический режим USB и реальную скорость передачи."
+                                                    Foreground="{DynamicResource TextMutedBrush}"
+                                                    TextWrapping="Wrap"
+                                                    Margin="0,5,24,0"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="1"
+                                                    Content="Проверить скорость"
+                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                    Command="{Binding TestConnectionCommand}"
+                                                    VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <ProgressBar Value="{Binding ConnectionTestProgress}"
+                                                     Height="5"
+                                                     Margin="0,18,0,0"/>
+                                        <TextBlock Text="{Binding ConnectionTestStatus}"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   Margin="0,9,0,14"/>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="10"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="10"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Style="{StaticResource SubtleCardStyle}">
+                                                <StackPanel>
+                                                    <TextBlock Text="USB LINK"
+                                                               Style="{StaticResource LabelStyle}"/>
+                                                    <TextBlock Text="{Binding UsbLinkMetric}"
+                                                               FontSize="24"
+                                                               FontWeight="SemiBold"
+                                                               Margin="0,7,0,3"/>
+                                                    <TextBlock Text="{Binding UsbLinkCaption}"
+                                                               Foreground="{DynamicResource TextMutedBrush}"
+                                                               TextWrapping="Wrap"
+                                                               FontSize="12"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Grid.Column="2"
+                                                    Style="{StaticResource SubtleCardStyle}">
+                                                <StackPanel>
+                                                    <TextBlock Text="ADB"
+                                                               Style="{StaticResource LabelStyle}"/>
+                                                    <TextBlock Text="{Binding AdbSpeedMetric}"
+                                                               FontSize="24"
+                                                               FontWeight="SemiBold"
+                                                               Margin="0,7,0,3"/>
+                                                    <TextBlock Text="{Binding AdbSpeedCaption}"
+                                                               Foreground="{DynamicResource TextMutedBrush}"
+                                                               TextWrapping="Wrap"
+                                                               FontSize="12"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Grid.Column="4"
+                                                    Style="{StaticResource SubtleCardStyle}">
+                                                <StackPanel>
+                                                    <TextBlock Text="FAST WI-FI"
+                                                               Style="{StaticResource LabelStyle}"/>
+                                                    <TextBlock Text="{Binding FastLanSpeedMetric}"
+                                                               FontSize="24"
+                                                               FontWeight="SemiBold"
+                                                               Margin="0,7,0,3"/>
+                                                    <TextBlock Text="{Binding FastLanSpeedCaption}"
+                                                               Foreground="{DynamicResource TextMutedBrush}"
+                                                               TextWrapping="Wrap"
+                                                               FontSize="12"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                        <Border Background="{DynamicResource SelectionBrush}"
+                                                BorderBrush="{DynamicResource AccentBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="15"
+                                                Margin="0,14,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding ConnectionRecommendation}"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding ConnectionEstimate}"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <TextBlock
+                                            Text="Тест занимает около 10–20 секунд, не читает ваши фото и не создаёт временные файлы."
+                                            Foreground="{DynamicResource TextMutedBrush}"
+                                            TextWrapping="Wrap"
+                                            FontSize="12"
+                                            Margin="0,11,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="2"
+                                        Style="{StaticResource CardStyle}">
                                     <StackPanel>
                                         <Border Width="66" Height="66" CornerRadius="20"
                                                 Background="{StaticResource BrandGradient}"
@@ -452,7 +564,7 @@
                                                 Margin="0,20,0,0"/>
                                     </StackPanel>
                                 </Border>
-                                <StackPanel Grid.Column="2">
+                                <StackPanel Grid.Row="2" Grid.Column="2">
                                     <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
                                         <StackPanel>
                                             <TextBlock Text="Безопасно и просто"
@@ -752,4 +864,3 @@
         </Grid>
     </Border>
 </Window>
-

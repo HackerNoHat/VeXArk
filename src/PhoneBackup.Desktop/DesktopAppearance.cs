@@ -294,6 +294,22 @@ public static class LocalizationManager
         ["Выбрать папку"] = "Choose folder",
         ["Транспорт данных"] = "Data transport",
         ["Скопировать все фото и видео"] = "Copy all photos and videos",
+        ["Тест подключения"] = "Connection test",
+        ["Меняйте кабели и порты без догадок: VeXArk покажет физический режим USB и реальную скорость передачи."] =
+            "Swap cables and ports without guessing: VeXArk shows the negotiated USB link and real transfer speed.",
+        ["Проверить скорость"] = "Test connection",
+        ["Тест занимает около 10–20 секунд, не читает ваши фото и не создаёт временные файлы."] =
+            "The test takes about 10–20 seconds, does not read your photos and creates no temporary files.",
+        ["Подключите телефон и запустите тест. Реальные файлы не копируются."] =
+            "Connect a phone and run the test. No real files are copied.",
+        ["Физический режим кабеля"] = "Negotiated cable link",
+        ["Реальная скорость через ADB"] = "Measured ADB throughput",
+        ["Fast Wi-Fi сейчас недоступен"] = "Fast Wi-Fi is currently unavailable",
+        ["Зашифрованный канал по локальной сети"] = "Encrypted local-network channel",
+        ["VeXArk сравнит подключения и выберет самое быстрое."] =
+            "VeXArk will compare the connections and choose the fastest one.",
+        ["После теста появится оценка времени для 10, 50 и 100 ГБ."] =
+            "After the test, estimated times for 10, 50 and 100 GB will appear.",
         ["Перед копированием Auto проверит ADB, Fast Wi-Fi и диск назначения."] =
             "Auto will test ADB, Fast Wi-Fi and the destination drive before copying.",
         ["Копируются оригиналы из MediaStore. На телефоне ничего не удаляется."] =
@@ -372,6 +388,14 @@ public static class LocalizationManager
         ("Проверка скорости диска", "Testing destination drive speed"),
         ("Проверка скорости ADB", "Testing ADB speed"),
         ("Проверка Fast Wi-Fi", "Testing Fast Wi-Fi"),
+        ("Тест подключения завершён", "Connection test complete"),
+        ("Тест не выполнен:", "Connection test failed:"),
+        ("Тест подключения", "Testing connection"),
+        ("Windows проверяет физический режим USB", "Windows is checking the negotiated USB link"),
+        ("Тест ADB", "Testing ADB"),
+        ("Тест Fast Wi-Fi", "Testing Fast Wi-Fi"),
+        ("Fast Wi-Fi быстрее", "Fast Wi-Fi is faster"),
+        ("ADB быстрее", "ADB is faster"),
         ("Fast Wi-Fi недоступен", "Fast Wi-Fi is unavailable"),
         ("Используется ADB", "Using ADB"),
         ("Fast Wi-Fi прерван, продолжение через ADB", "Fast Wi-Fi interrupted, resuming over ADB"),
