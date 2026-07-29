@@ -17,11 +17,20 @@ if (-not $env:VEXARK_KEYSTORE_PATH) {
 
 $keystoreBase64 = [Convert]::ToBase64String(
     [IO.File]::ReadAllBytes($env:VEXARK_KEYSTORE_PATH))
-$keystoreBase64 | gh secret set VEXARK_KEYSTORE_BASE64 --repo $Repository
-$env:VEXARK_KEYSTORE_PASSWORD |
-    gh secret set VEXARK_KEYSTORE_PASSWORD --repo $Repository
-$env:VEXARK_KEY_PASSWORD |
-    gh secret set VEXARK_KEY_PASSWORD --repo $Repository
+
+& gh secret set VEXARK_KEYSTORE_BASE64 `
+    --repo $Repository `
+    --body $keystoreBase64
+if ($LASTEXITCODE -ne 0) { throw "Failed to configure VEXARK_KEYSTORE_BASE64." }
+
+& gh secret set VEXARK_KEYSTORE_PASSWORD `
+    --repo $Repository `
+    --body $env:VEXARK_KEYSTORE_PASSWORD
+if ($LASTEXITCODE -ne 0) { throw "Failed to configure VEXARK_KEYSTORE_PASSWORD." }
+
+& gh secret set VEXARK_KEY_PASSWORD `
+    --repo $Repository `
+    --body $env:VEXARK_KEY_PASSWORD
+if ($LASTEXITCODE -ne 0) { throw "Failed to configure VEXARK_KEY_PASSWORD." }
 
 Write-Host "Android signing secrets configured for $Repository."
-
