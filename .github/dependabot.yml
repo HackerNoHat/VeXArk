@@ -2,14 +2,42 @@ version: 2
 updates:
   - package-ecosystem: nuget
     directory: "/"
+    target-branch: develop
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Moscow
+    open-pull-requests-limit: 1
+    groups:
+      dotnet-dependencies:
+        patterns:
+          - "*"
+
   - package-ecosystem: gradle
     directory: "/agent"
+    target-branch: develop
     schedule:
       interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Moscow
+    open-pull-requests-limit: 1
+    groups:
+      android-dependencies:
+        patterns:
+          - "*"
+
   - package-ecosystem: github-actions
     directory: "/"
+    target-branch: develop
     schedule:
       interval: weekly
-
+      day: monday
+      time: "06:00"
+      timezone: Europe/Moscow
+    open-pull-requests-limit: 1
+    groups:
+      github-actions:
+        patterns:
+          - "*"
