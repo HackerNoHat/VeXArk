@@ -5,7 +5,7 @@
   <p>
     <a href="../README.md">English</a> ·
     <a href="https://vexeveryone.github.io/VeXArk/">Сайт</a> ·
-    <a href="https://github.com/VeXEveryOne/VeXArk/releases/latest">Скачать</a> ·
+    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.6.1">Скачать</a> ·
     <a href="../CHANGELOG.md">История версий</a>
   </p>
 </div>
@@ -25,9 +25,9 @@ root-helper. Без root доступны инвентаризация, APK/spli
 
 | Платформа | Файл | Требования |
 | --- | --- | --- |
-| Windows | [Скачать `VeXArk.exe`](https://github.com/VeXEveryOne/VeXArk/releases/latest/download/VeXArk.exe) | Windows 10/11 x64 |
-| Android | [Скачать `VeXArk-Agent.apk`](https://github.com/VeXEveryOne/VeXArk/releases/latest/download/VeXArk-Agent.apk) | Android 10–16, arm64-v8a |
-| Хеши | [`SHA256SUMS.txt`](https://github.com/VeXEveryOne/VeXArk/releases/latest/download/SHA256SUMS.txt) | Для проверки файлов |
+| Windows | [Скачать `VeXArk.exe`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.6.1/VeXArk.exe) | Windows 10/11 x64 |
+| Android | [Скачать `VeXArk-Agent.apk`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.6.1/VeXArk-Agent.apk) | Android 10–16, arm64-v8a |
+| Хеши | [`SHA256SUMS.txt`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.6.1/SHA256SUMS.txt) | Для проверки файлов |
 
 Windows-клиент portable: внутри уже лежат совместимый Agent и ADB. Установка и
 права администратора не нужны.
@@ -78,4 +78,3 @@ VeXArk не устанавливает root и не патчит boot image.
 
 Сборка из исходников и технические подробности находятся в
 [English README](../README.md). Лицензия — `GPL-3.0-only`.
-

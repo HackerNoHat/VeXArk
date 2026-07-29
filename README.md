@@ -5,12 +5,12 @@
   <p>
     <a href="docs/README.ru.md">Русский</a> ·
     <a href="https://vexeveryone.github.io/VeXArk/">Website</a> ·
-    <a href="https://github.com/VeXEveryOne/VeXArk/releases/latest">Downloads</a> ·
+    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.6.1">Downloads</a> ·
     <a href="CHANGELOG.md">Changelog</a> ·
     <a href="SECURITY.md">Security</a>
   </p>
   <p>
-    <a href="https://github.com/VeXEveryOne/VeXArk/releases/latest">
+    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.6.1">
       <img alt="GitHub release" src="https://img.shields.io/github/v/release/VeXEveryOne/VeXArk?include_prereleases&style=flat-square">
     </a>
     <a href="https://github.com/VeXEveryOne/VeXArk/actions/workflows/build.yml">
@@ -39,9 +39,9 @@ when Magisk, KernelSU or APatch is available.
 
 | Platform | Package | Requirements |
 | --- | --- | --- |
-| Windows | [Download `VeXArk.exe`](https://github.com/VeXEveryOne/VeXArk/releases/latest/download/VeXArk.exe) | Windows 10/11 x64 |
-| Android | [Download `VeXArk-Agent.apk`](https://github.com/VeXEveryOne/VeXArk/releases/latest/download/VeXArk-Agent.apk) | Android 10–16, arm64-v8a |
-| Checksums | [`SHA256SUMS.txt`](https://github.com/VeXEveryOne/VeXArk/releases/latest/download/SHA256SUMS.txt) | Verify before installing |
+| Windows | [Download `VeXArk.exe`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.6.1/VeXArk.exe) | Windows 10/11 x64 |
+| Android | [Download `VeXArk-Agent.apk`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.6.1/VeXArk-Agent.apk) | Android 10–16, arm64-v8a |
+| Checksums | [`SHA256SUMS.txt`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.6.1/SHA256SUMS.txt) | Verify before installing |
 
 The Windows build is self-contained and portable. It bundles the matching Agent
 APK and Android Platform Tools; neither an installer nor administrator rights are
@@ -157,4 +157,3 @@ The project is informed by the architecture and workflows of
 [DataBackup](https://github.com/XayahSuSuSu/Android-DataBackup) and
 [Open Android Backup](https://github.com/mrrfv/open-android-backup).
 No Neo Backup source code is included.
-
