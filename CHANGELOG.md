@@ -10,6 +10,14 @@ and the project uses semantic versioning.
 
 - Additional restore fixtures across Android 10–16 and multiple ROM families.
 
+## [0.8.0-beta.4] — 2026-07-30
+
+### Fixed
+
+- Release builds now run diagnostics tests under their required Dev runtime
+  profile before publishing the separately built Stable desktop application.
+- Includes the certificate and clean-runner fixes from beta.3.
+
 ## [0.8.0-beta.3] — 2026-07-30
 
 ### Fixed
@@ -239,7 +247,8 @@ and the project uses semantic versioning.
 - Android 10–16 no-root inventory and capability probing.
 - Versioned length-prefixed loopback protocol over `adb forward`.
 
-[Unreleased]: https://github.com/VeXEveryOne/VeXArk/compare/v0.8.0-beta.3...HEAD
+[Unreleased]: https://github.com/VeXEveryOne/VeXArk/compare/v0.8.0-beta.4...HEAD
+[0.8.0-beta.4]: https://github.com/VeXEveryOne/VeXArk/compare/v0.8.0-beta.3...v0.8.0-beta.4
 [0.8.0-beta.3]: https://github.com/VeXEveryOne/VeXArk/compare/v0.8.0-beta.2...v0.8.0-beta.3
 [0.8.0-beta.2]: https://github.com/VeXEveryOne/VeXArk/compare/v0.8.0-beta.1...v0.8.0-beta.2
 [0.8.0-beta.1]: https://github.com/VeXEveryOne/VeXArk/compare/v0.7.1...v0.8.0-beta.1

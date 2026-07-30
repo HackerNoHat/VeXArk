@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T18:55:06",
+  "generated_at": "2026-07-30T19:07:48",
   "root": "D:\\Ilya\\VeXArk",
-  "file_count": 4502,
+  "file_count": 4503,
   "python_module_count": 0,
   "top_level_counts": {
     "src": 2676,
@@ -9,7 +9,7 @@
     "tests": 508,
     "helper": 320,
     "agent": 55,
-    "docs": 27,
+    "docs": 28,
     "artifacts": 10,
     ".github": 7,
     "scripts": 4,
@@ -42,7 +42,7 @@
     ".rlib": 34,
     ".rmeta": 34,
     ".txt": 25,
-    ".md": 22,
+    ".md": 23,
     ".kt": 21,
     ".so": 20,
     ".editorconfig": 14,
@@ -191,7 +191,7 @@
     {
       "path": "agent/.gradle/9.5.1/fileHashes/resourceHashesCache.bin",
       "suffix": ".bin",
-      "size": 29037,
+      "size": 29411,
       "kind": "other"
     },
     {
@@ -545,7 +545,7 @@
     {
       "path": "CHANGELOG.md",
       "suffix": ".md",
-      "size": 10876,
+      "size": 11230,
       "kind": "docs"
     },
     {
@@ -629,13 +629,13 @@
     {
       "path": "docs/codebase/file-map.md",
       "suffix": ".md",
-      "size": 6912,
+      "size": 6964,
       "kind": "docs"
     },
     {
       "path": "docs/codebase/index.json",
       "suffix": ".json",
-      "size": 895233,
+      "size": 895358,
       "kind": "data"
     },
     {
@@ -708,6 +708,12 @@
       "path": "docs/releases/v0.8.0-beta.3.md",
       "suffix": ".md",
       "size": 3362,
+      "kind": "docs"
+    },
+    {
+      "path": "docs/releases/v0.8.0-beta.4.md",
+      "suffix": ".md",
+      "size": 3462,
       "kind": "docs"
     },
     {
@@ -2693,7 +2699,7 @@
     {
       "path": "scripts/build.ps1",
       "suffix": ".ps1",
-      "size": 12395,
+      "size": 12390,
       "kind": "code"
     },
     {

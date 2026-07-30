@@ -35,7 +35,7 @@ Windows-клиент portable: внутри уже лежат совместим
 права администратора не нужны.
 
 > Для тестирования импорта с iPhone используйте
-> [prerelease `v0.8.0-beta.3`](https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.8.0-beta.3).
+> [prerelease `v0.8.0-beta.4`](https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.8.0-beta.4).
 
 ## Возможности
 

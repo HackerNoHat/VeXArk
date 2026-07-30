@@ -209,7 +209,7 @@ if ($LASTEXITCODE -ne 0) { throw "Core tests завершились ошибко
 
 & $dotnet test (Join-Path $projectRoot "tests\PhoneBackup.Desktop.Tests\PhoneBackup.Desktop.Tests.csproj") `
     "--configuration" $Configuration "--nologo" `
-    "-p:VeXArkChannel=$Channel" "-p:VeXArkBuildId=$buildId"
+    "-p:VeXArkChannel=Dev" "-p:VeXArkBuildId=$buildId"
 if ($LASTEXITCODE -ne 0) { throw "Desktop tests завершились ошибкой." }
 
 & $dotnet publish (Join-Path $projectRoot "src\PhoneBackup.Desktop\PhoneBackup.Desktop.csproj") `

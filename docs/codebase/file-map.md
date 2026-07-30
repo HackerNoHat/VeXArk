@@ -5,7 +5,7 @@
 | File | Kind | Size |
 | --- | --- | --- |
 | .github/pull_request_template.md | docs | 415 B |
-| CHANGELOG.md | docs | 10.6 KiB |
+| CHANGELOG.md | docs | 11.0 KiB |
 | CODE_OF_CONDUCT.md | docs | 721 B |
 | CONTRIBUTING.md | docs | 1.2 KiB |
 | docs/codebase/change-impact.md | docs | 393 B |
@@ -23,6 +23,7 @@
 | docs/releases/v0.8.0-beta.1.md | docs | 3.4 KiB |
 | docs/releases/v0.8.0-beta.2.md | docs | 4.5 KiB |
 | docs/releases/v0.8.0-beta.3.md | docs | 3.3 KiB |
+| docs/releases/v0.8.0-beta.4.md | docs | 3.4 KiB |
 | docs/THREAT_MODEL.md | docs | 717 B |
 | README.md | docs | 8.6 KiB |
 | SECURITY.md | docs | 1.2 KiB |
