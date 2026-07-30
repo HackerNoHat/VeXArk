@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using Microsoft.Win32;
@@ -69,19 +70,23 @@ public sealed class PackageSelectionViewModel(PackageSnapshot package) : INotify
 public sealed class MainViewModel : INotifyPropertyChanged
 {
     private readonly AdbService _adb = new();
+    private readonly IPhoneMediaImportCoordinator _iPhoneMedia = new();
     private readonly Dictionary<string, string> _mediaTransports = new(StringComparer.Ordinal);
     private string _page = "devices";
     private string _statusText = "Готово";
     private bool _isBusy;
     private DeviceViewModel? _selectedDevice;
     private SnapshotViewModel? _selectedSnapshot;
+    private IPhoneMediaSourceViewModel? _selectedIPhoneSource;
     private string _restoreReportText = "Откройте локальное хранилище и выберите копию.";
     private string _mediaExportReportText =
-        "Копируются оригиналы из MediaStore. На телефоне ничего не удаляется.";
+        "Android копируется из MediaStore, iPhone — из DCIM через Windows. На телефоне ничего не удаляется.";
     private string _localCopyReportText =
         "Выбранный снимок можно сохранить одним зашифрованным файлом.";
     private string _mediaLiveStats =
-        "Перед копированием Auto проверит ADB, Fast Wi-Fi и диск назначения.";
+        "Android использует ADB или Fast Wi-Fi. iPhone подключается по USB через системный импорт Windows.";
+    private string _iPhoneSourceStatus =
+        "Подключите разблокированный iPhone по USB и нажмите «Найти iPhone».";
     private ConnectionBenchmarkResult? _connectionBenchmark;
     private string _connectionTestStatus =
         "Подключите телефон и запустите тест. Реальные файлы не копируются.";
@@ -89,6 +94,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private bool _isConnectionTestRunning;
 
     public ObservableCollection<DeviceViewModel> Devices { get; } = [];
+    public ObservableCollection<IPhoneMediaSourceViewModel> IPhoneSources { get; } = [];
     public ObservableCollection<string> SnapshotLines { get; } = [];
     public ObservableCollection<SnapshotViewModel> Snapshots { get; } = [];
     public ObservableCollection<PackageSelectionViewModel> BackupPackages { get; } = [];
@@ -106,8 +112,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         "backup" => SelectedDevice is null ? "Сначала выберите устройство" : SelectedDevice.DisplayName,
         "media" => SelectedDevice is null
-            ? "Сначала выберите устройство"
-            : $"{SelectedDevice.DisplayName} • root не требуется",
+            ? "Android: выберите устройство • iPhone: подключите по USB"
+            : $"{SelectedDevice.DisplayName} • iPhone также поддерживается по USB",
         "restore" => "Compatibility engine не применяет опасные данные автоматически",
         "history" => RepositoryPath,
         "settings" => "Локальный зашифрованный репозиторий",
@@ -133,7 +139,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set => Set(ref _statusText, value);
     }
     public string AppVersion =>
-        typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.7.1";
+        typeof(MainViewModel).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion.Split('+')[0] ??
+        typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ??
+        "0.8.0-beta.1";
     public bool IsBusy { get => _isBusy; set => Set(ref _isBusy, value); }
     public DeviceViewModel? SelectedDevice
     {
@@ -158,6 +168,22 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
     public SnapshotViewModel? SelectedSnapshot { get => _selectedSnapshot; set => Set(ref _selectedSnapshot, value); }
+    public IPhoneMediaSourceViewModel? SelectedIPhoneSource
+    {
+        get => _selectedIPhoneSource;
+        set
+        {
+            if (ReferenceEquals(_selectedIPhoneSource, value)) return;
+            Set(ref _selectedIPhoneSource, value);
+            if (value is not null)
+            {
+                IPhoneSourceStatus = $"{value.DisplayName}: " +
+                    (value.IsLocked
+                        ? "разблокируйте телефон перед копированием"
+                        : "готов к копированию");
+            }
+        }
+    }
     public string RestoreReportText
     {
         get => LocalizationManager.T(_restoreReportText);
@@ -181,6 +207,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         get => LocalizationManager.T(_mediaLiveStats);
         set => Set(ref _mediaLiveStats, value);
+    }
+    public string IPhoneSourceStatus
+    {
+        get => LocalizationManager.T(_iPhoneSourceStatus);
+        set => Set(ref _iPhoneSourceStatus, value);
     }
     public string ConnectionTestStatus
     {
@@ -328,6 +359,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand ChooseRepositoryCommand { get; }
     public RelayCommand ChooseMediaDestinationCommand { get; }
     public AsyncRelayCommand ExportMediaCommand { get; }
+    public AsyncRelayCommand RefreshIPhoneSourcesCommand { get; }
+    public AsyncRelayCommand ImportIPhoneMediaCommand { get; }
     public AsyncRelayCommand TestConnectionCommand { get; }
     public AsyncRelayCommand ExportSnapshotBundleCommand { get; }
     public AsyncRelayCommand ImportSnapshotBundleCommand { get; }
@@ -369,6 +402,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RecoverRepositoryCommand = new(RecoverRepositoryAsync);
         LoadDesktopSettings();
         ExportMediaCommand = new(ExportMediaAsync);
+        RefreshIPhoneSourcesCommand = new(RefreshIPhoneSourcesAsync);
+        ImportIPhoneMediaCommand = new(ImportIPhoneMediaAsync);
         TestConnectionCommand = new(TestConnectionAsync);
         ExportSnapshotBundleCommand = new(ExportSnapshotBundleAsync);
         ImportSnapshotBundleCommand = new(ImportSnapshotBundleAsync);
@@ -606,6 +641,97 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 ? "В репозитории пока нет snapshots."
                 : $"Найдено snapshots: {manifests.Count}. Выберите снимок для проверки.";
             StatusText = $"Репозиторий открыт: {manifests.Count} snapshots";
+        });
+    }
+
+    private async Task RefreshIPhoneSourcesAsync(object? _)
+    {
+        await BusyAsync("Поиск iPhone…", async () =>
+        {
+            await RefreshIPhoneSourcesCoreAsync();
+            StatusText = IPhoneSources.Count == 0
+                ? "iPhone не найден"
+                : $"Найдено Apple-устройств: {IPhoneSources.Count}";
+        });
+    }
+
+    private async Task RefreshIPhoneSourcesCoreAsync()
+    {
+        var selectedId = SelectedIPhoneSource?.Id;
+        var sources = await _iPhoneMedia.DiscoverAsync();
+        IPhoneSources.Clear();
+        foreach (var source in sources) IPhoneSources.Add(source);
+        SelectedIPhoneSource =
+            IPhoneSources.FirstOrDefault(source => source.Id == selectedId) ??
+            IPhoneSources.FirstOrDefault();
+        IPhoneSourceStatus = SelectedIPhoneSource is null
+            ? "iPhone не найден. Установите Apple Devices, разблокируйте телефон, нажмите «Доверять» и переподключите кабель."
+            : $"{SelectedIPhoneSource.DisplayName}: " +
+              (SelectedIPhoneSource.IsLocked
+                  ? "разблокируйте телефон перед копированием"
+                  : "готов к копированию");
+        Raise(nameof(PageSubtitle));
+    }
+
+    private async Task ImportIPhoneMediaAsync(object? _)
+    {
+        await BusyAsync("Подключение к iPhone…", async () =>
+        {
+            if (SelectedIPhoneSource is null)
+                await RefreshIPhoneSourcesCoreAsync();
+            var source = SelectedIPhoneSource ?? throw new InvalidOperationException(
+                "iPhone не найден. Установите Apple Devices, разблокируйте телефон, " +
+                "нажмите «Доверять» и переподключите USB-кабель.");
+
+            SaveDesktopSettings();
+            var transferProgress = new Progress<TransferProgress>(value =>
+            {
+                StatusText = value.Stage switch
+                {
+                    "iphone-scan" => "iPhone составляет список фото и видео…",
+                    "iphone-copy" when value.Total > 0 =>
+                        $"Копирование с iPhone: {value.Completed}/{value.Total}",
+                    "iphone-complete" => "Копирование с iPhone завершено",
+                    _ => value.Item
+                };
+            });
+            var transferMetrics = new Progress<IPhoneMediaTransferMetrics>(value =>
+            {
+                var eta = value.BytesPerSecond > 0 &&
+                          value.TotalBytes > value.ImportedBytes
+                    ? TimeSpan.FromSeconds(
+                        (value.TotalBytes - value.ImportedBytes) / value.BytesPerSecond)
+                    : (TimeSpan?)null;
+                MediaLiveStats =
+                    $"Apple USB • {FormatRate(value.BytesPerSecond)}\n" +
+                    $"{FormatBytes(value.ImportedBytes)} / {FormatBytes(value.TotalBytes)} • " +
+                    (eta is { } remaining
+                        ? $"осталось ~{FormatDuration(remaining)}"
+                        : "завершение") +
+                    $" • {value.ImportedItems}/{value.TotalItems} файлов";
+            });
+
+            var report = await _iPhoneMedia.ImportNewAsync(
+                source,
+                MediaDestination,
+                transferProgress,
+                transferMetrics);
+            MediaExportReportText =
+                $"iPhone: {report.SourceName}\n" +
+                $"Скопировано: {report.ImportedItems} ({FormatBytes(report.ImportedBytes)})\n" +
+                $"Фото: {report.Photos}, видео: {report.Videos}\n" +
+                $"Уже было импортировано: {report.SkippedItems}\n" +
+                $"Ошибок: {report.FailedItems}\n" +
+                $"Новых данных: {FormatBytes(report.TotalBytes)}\n" +
+                $"Средняя скорость: {FormatRate(report.AverageBytesPerSecond)}" +
+                (report.Errors.Count == 0
+                    ? string.Empty
+                    : "\n\nОшибки:\n" + string.Join("\n", report.Errors.Take(10)));
+            StatusText = report.FailedItems == 0
+                ? $"Фото и видео с iPhone скопированы: {report.ImportedItems}, пропущено: {report.SkippedItems}"
+                : $"Копирование с iPhone завершено с ошибками: {report.FailedItems}";
+            IPhoneSourceStatus =
+                $"{report.SourceName}: последнее копирование — {report.ImportedItems} новых файлов";
         });
     }
 

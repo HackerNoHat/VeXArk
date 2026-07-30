@@ -290,11 +290,22 @@ public static class LocalizationManager
         ["Семейный фотоархив"] = "Family photo archive",
         ["Скопируйте все оригиналы с телефона в обычную папку Windows. Root не нужен."] =
             "Copy every original from the phone to a regular Windows folder. Root is not required.",
+        ["Скопируйте оригиналы с Android или iPhone в обычную папку Windows. Облако не используется."] =
+            "Copy originals from Android or iPhone to a regular Windows folder. No cloud is used.",
         ["Куда сохранить"] = "Destination",
         ["Выбрать папку"] = "Choose folder",
         ["Транспорт данных"] = "Data transport",
         ["Скопировать все фото и видео"] = "Copy all photos and videos",
+        ["Android"] = "Android",
+        ["Транспорт Android"] = "Android transport",
+        ["Скопировать с Android"] = "Copy from Android",
+        ["iPhone"] = "iPhone",
+        ["Без приложения на телефоне: разблокируйте iPhone и подтвердите «Доверять»."] =
+            "No phone app required: unlock the iPhone and confirm Trust.",
+        ["Найти iPhone"] = "Find iPhone",
+        ["Скопировать с iPhone"] = "Copy from iPhone",
         ["Тест подключения"] = "Connection test",
+        ["Тест подключения Android"] = "Android connection test",
         ["Меняйте кабели и порты без догадок: VeXArk покажет физический режим USB и реальную скорость передачи."] =
             "Swap cables and ports without guessing: VeXArk shows the negotiated USB link and real transfer speed.",
         ["Проверить скорость"] = "Test connection",
@@ -314,12 +325,23 @@ public static class LocalizationManager
             "Auto will test ADB, Fast Wi-Fi and the destination drive before copying.",
         ["Копируются оригиналы из MediaStore. На телефоне ничего не удаляется."] =
             "Originals are copied from MediaStore. Nothing is deleted from the phone.",
+        ["Android копируется из MediaStore, iPhone — из DCIM через Windows. На телефоне ничего не удаляется."] =
+            "Android media comes from MediaStore; iPhone media comes from DCIM through Windows. Nothing is deleted from the phone.",
+        ["Android использует ADB или Fast Wi-Fi. iPhone подключается по USB через системный импорт Windows."] =
+            "Android uses ADB or Fast Wi-Fi. iPhone uses the Windows system importer over USB.",
+        ["Подключите разблокированный iPhone по USB и нажмите «Найти iPhone»."] =
+            "Connect an unlocked iPhone over USB and select Find iPhone.",
         ["Безопасно и просто"] = "Safe and simple",
         ["✓ Сохраняются DCIM, Pictures, Movies и папки мессенджеров"] =
             "✓ Includes DCIM, Pictures, Movies and messenger folders",
+        ["✓ Android: DCIM, Pictures, Movies и папки мессенджеров"] =
+            "✓ Android: DCIM, Pictures, Movies and messenger folders",
+        ["✓ iPhone: оригинальная структура DCIM, HEIC, MOV и Live Photos"] =
+            "✓ iPhone: original DCIM structure, HEIC, MOV and Live Photos",
         ["✓ Уже скопированные файлы пропускаются"] = "✓ Already copied files are skipped",
         ["✓ На телефоне ничего не удаляется"] = "✓ Nothing is deleted from the phone",
         ["✓ Работает без root"] = "✓ Works without root",
+        ["✓ Без root и без приложения на iPhone"] = "✓ No root and no iPhone app required",
         ["Выберите резервную копию"] = "Choose a backup",
         ["Перед восстановлением VeXArk проверит ROM, подписи приложений и опасные компоненты."] =
             "Before restoring, VeXArk checks the ROM, app signatures and risky components.",
@@ -363,6 +385,8 @@ public static class LocalizationManager
             "USB and Wireless ADB connections are merged by physical device",
         ["Локальный зашифрованный репозиторий"] = "Local encrypted repository",
         ["Сначала выберите устройство"] = "Select a device first",
+        ["Android: выберите устройство • iPhone: подключите по USB"] =
+            "Android: select a device • iPhone: connect over USB",
         ["Compatibility engine не применяет опасные данные автоматически"] =
             "The compatibility engine never applies risky data automatically"
     };
@@ -384,6 +408,31 @@ public static class LocalizationManager
         ("Backup завершён", "Backup complete"),
         ("Открытие manifests", "Opening manifests"),
         ("Репозиторий открыт", "Repository opened"),
+        ("Поиск iPhone", "Looking for iPhone"),
+        ("Подключение к iPhone", "Connecting to iPhone"),
+        ("iPhone не найден", "iPhone not found"),
+        ("Установите Apple Devices", "Install Apple Devices"),
+        ("разблокируйте телефон", "unlock the phone"),
+        ("нажмите «Доверять»", "tap Trust"),
+        ("переподключите кабель", "reconnect the cable"),
+        ("переподключите USB-кабель", "reconnect the USB cable"),
+        ("Найдено Apple-устройств:", "Apple devices found:"),
+        ("iPhone также поддерживается по USB", "iPhone is also supported over USB"),
+        ("готов к копированию", "ready to copy"),
+        ("последнее копирование", "last copy"),
+        ("новых файлов", "new files"),
+        ("iPhone составляет список фото и видео", "The iPhone is listing photos and videos"),
+        ("Копирование с iPhone завершено", "iPhone copy complete"),
+        ("Копирование с iPhone:", "Copying from iPhone:"),
+        ("Фото и видео с iPhone скопированы", "iPhone photos and videos copied"),
+        ("Уже было импортировано:", "Already imported:"),
+        ("Новых данных:", "New data:"),
+        ("Фото:", "Photos:"),
+        ("видео:", "videos:"),
+        ("Apple-устройств", "Apple devices"),
+        ("файлов", "files"),
+        ("осталось", "remaining"),
+        ("завершение", "finishing"),
         ("Телефон составляет список фото и видео", "The phone is listing photos and videos"),
         ("Проверка скорости диска", "Testing destination drive speed"),
         ("Проверка скорости ADB", "Testing ADB speed"),

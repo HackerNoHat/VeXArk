@@ -11,6 +11,28 @@ and the project uses semantic versioning.
 - Stable signing and broader rooted-device validation.
 - Additional restore fixtures across Android 10–16 and multiple ROM families.
 
+## [0.8.0-beta.1] — 2026-07-30
+
+### Added
+
+- Native Windows photo/video import from trusted, unlocked iPhones over USB.
+- New-only iPhone copying with preserved DCIM structure, HEIC/video/Live Photo
+  companions and live transfer progress.
+- iPhone discovery, source selection and bilingual setup guidance in the
+  Photos & videos page.
+
+### Changed
+
+- Windows desktop and dependent diagnostic tools now target the Windows 10
+  2004 API surface required by the native media-import APIs.
+- Tagged versions with a prerelease suffix are published as GitHub prereleases.
+
+### Verified
+
+- Release build and self-contained single-file publish on Windows.
+- All 38 Core tests and the unpackaged WPF no-device media-import path.
+- Physical iPhone transfer remains the focus of this beta.
+
 ## [0.7.1] — 2026-07-30
 
 ### Added
@@ -164,7 +186,8 @@ and the project uses semantic versioning.
 - Android 10–16 no-root inventory and capability probing.
 - Versioned length-prefixed loopback protocol over `adb forward`.
 
-[Unreleased]: https://github.com/VeXEveryOne/VeXArk/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/VeXEveryOne/VeXArk/compare/v0.8.0-beta.1...HEAD
+[0.8.0-beta.1]: https://github.com/VeXEveryOne/VeXArk/compare/v0.7.1...v0.8.0-beta.1
 [0.7.1]: https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.1
 [0.7.0]: https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.0
 [0.6.1]: https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.6.1

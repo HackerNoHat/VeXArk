@@ -29,7 +29,8 @@
 VeXArk is an offline Android backup system built around a portable Windows
 controller, a Material You Android agent and a constrained native root helper.
 It supports useful no-root workflows today and unlocks private app-data snapshots
-when Magisk, KernelSU or APatch is available.
+when Magisk, KernelSU or APatch is available. The Windows client can also import
+original photos and videos from an iPhone without installing an iOS app.
 
 > [!IMPORTANT]
 > VeXArk is under active development. Always keep a second copy of irreplaceable
@@ -47,11 +48,17 @@ The Windows build is self-contained and portable. It bundles the matching Agent
 APK and Android Platform Tools; neither an installer nor administrator rights are
 required.
 
+> Testing iPhone import? Use the
+> [`v0.8.0-beta.1` prerelease](https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.8.0-beta.1).
+
 ## Why VeXArk
 
 - **Offline by design.** No account, cloud backend, analytics or telemetry.
 - **No-root photo migration.** Copy every MediaStore photo and video into an
   ordinary Windows folder while preserving directories and skipping duplicates.
+- **iPhone photo and video import.** Copy new originals, HEIC files, videos and
+  Live Photo companions from a trusted, unlocked iPhone over USB while preserving
+  its DCIM folder structure.
 - **Fast Wi-Fi and resume.** VeXArk benchmarks ADB, encrypted direct LAN and the
   destination disk, copies with up to four workers and resumes interrupted files.
 - **Cable and port tester.** The Desktop client shows the negotiated USB link,
@@ -103,6 +110,9 @@ Designed for moving between ROMs:
 Photos and videos are excluded from encrypted snapshots by default and are
 handled by the simpler no-root media exporter.
 
+iPhone support is intentionally limited to the photo/video importer. VeXArk does
+not read iOS app data, messages, credentials or device backups.
+
 ### Controlled Full
 
 Adds ROM-sensitive data such as selected Wi-Fi internals, launcher/SystemUI state
@@ -128,6 +138,16 @@ migration.
 7. Start with a small backup and verify it from History.
 
 Root is optional. VeXArk does not patch boot images or install a root provider.
+
+For iPhone media import:
+
+1. Install Apple Devices from the Microsoft Store.
+2. Connect the iPhone over USB, unlock it and approve **Trust This Computer**.
+3. Open **Photos & videos**, select **Find iPhone**, choose the destination and
+   select **Copy from iPhone**.
+
+If iCloud Photos uses optimized storage, download the full-resolution originals
+to the iPhone before importing.
 
 ## Build from source
 

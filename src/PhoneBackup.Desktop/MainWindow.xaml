@@ -428,7 +428,7 @@
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
                                             <StackPanel>
-                                                <TextBlock Text="Тест подключения"
+                                                <TextBlock Text="Тест подключения Android"
                                                            Style="{StaticResource SectionTitleStyle}"/>
                                                 <TextBlock
                                                     Text="Меняйте кабели и порты без догадок: VeXArk покажет физический режим USB и реальную скорость передачи."
@@ -540,7 +540,7 @@
                                                    Style="{StaticResource PageTitleStyle}"
                                                    FontSize="26" Margin="0,18,0,0"/>
                                         <TextBlock
-                                            Text="Скопируйте все оригиналы с телефона в обычную папку Windows. Root не нужен."
+                                            Text="Скопируйте оригиналы с Android или iPhone в обычную папку Windows. Облако не используется."
                                             Foreground="{DynamicResource TextMutedBrush}"
                                             FontSize="14" TextWrapping="Wrap" Margin="0,8,0,22"/>
                                         <TextBlock Text="Куда сохранить" Style="{StaticResource LabelStyle}"/>
@@ -549,19 +549,50 @@
                                         <Button Content="Выбрать папку"
                                                 Command="{Binding ChooseMediaDestinationCommand}"
                                                 HorizontalAlignment="Left"/>
-                                        <TextBlock Text="Транспорт данных"
+                                        <TextBlock Text="Android"
+                                                   Style="{StaticResource SectionTitleStyle}"
+                                                   Margin="0,18,0,0"/>
+                                        <TextBlock Text="Транспорт Android"
                                                    Style="{StaticResource LabelStyle}"
-                                                   Margin="0,18,0,6"/>
+                                                   Margin="0,10,0,6"/>
                                         <ComboBox ItemsSource="{Binding MediaTransportOptions}"
                                                   DisplayMemberPath="Label"
                                                   SelectedValuePath="Key"
                                                   SelectedValue="{Binding SelectedMediaTransport,
                                                       Mode=TwoWay,
                                                       UpdateSourceTrigger=PropertyChanged}"/>
-                                        <Button Content="Скопировать все фото и видео"
+                                        <Button Content="Скопировать с Android"
                                                 Style="{StaticResource PrimaryButtonStyle}"
                                                 Command="{Binding ExportMediaCommand}"
-                                                Margin="0,20,0,0"/>
+                                                Margin="0,14,0,0"/>
+                                        <Border Height="1"
+                                                Background="{DynamicResource BorderBrush}"
+                                                Margin="0,22,0,18"/>
+                                        <TextBlock Text="iPhone"
+                                                   Style="{StaticResource SectionTitleStyle}"/>
+                                        <TextBlock
+                                            Text="Без приложения на телефоне: разблокируйте iPhone и подтвердите «Доверять»."
+                                            Foreground="{DynamicResource TextMutedBrush}"
+                                            TextWrapping="Wrap"
+                                            Margin="0,6,0,10"/>
+                                        <ComboBox ItemsSource="{Binding IPhoneSources}"
+                                                  DisplayMemberPath="DisplayName"
+                                                  SelectedItem="{Binding SelectedIPhoneSource,
+                                                      Mode=TwoWay}"
+                                                  MinWidth="240"/>
+                                        <TextBlock Text="{Binding IPhoneSourceStatus}"
+                                                   Foreground="{DynamicResource TextMutedBrush}"
+                                                   TextWrapping="Wrap"
+                                                   FontSize="12"
+                                                   Margin="0,7,0,10"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="Найти iPhone"
+                                                    Command="{Binding RefreshIPhoneSourcesCommand}"
+                                                    Margin="0,0,8,0"/>
+                                            <Button Content="Скопировать с iPhone"
+                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                    Command="{Binding ImportIPhoneMediaCommand}"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
                                 <StackPanel Grid.Row="2" Grid.Column="2">
@@ -569,13 +600,15 @@
                                         <StackPanel>
                                             <TextBlock Text="Безопасно и просто"
                                                        Style="{StaticResource SectionTitleStyle}"/>
-                                            <TextBlock Text="✓ Сохраняются DCIM, Pictures, Movies и папки мессенджеров"
+                                            <TextBlock Text="✓ Android: DCIM, Pictures, Movies и папки мессенджеров"
                                                        TextWrapping="Wrap" Margin="0,14,0,8"/>
+                                            <TextBlock Text="✓ iPhone: оригинальная структура DCIM, HEIC, MOV и Live Photos"
+                                                       TextWrapping="Wrap" Margin="0,0,0,8"/>
                                             <TextBlock Text="✓ Уже скопированные файлы пропускаются"
                                                        TextWrapping="Wrap" Margin="0,0,0,8"/>
                                             <TextBlock Text="✓ На телефоне ничего не удаляется"
                                                        TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                            <TextBlock Text="✓ Работает без root"
+                                            <TextBlock Text="✓ Без root и без приложения на iPhone"
                                                        TextWrapping="Wrap" Margin="0,0,0,14"/>
                                             <Border Background="{DynamicResource InputBrush}"
                                                     BorderBrush="{DynamicResource BorderBrush}"
