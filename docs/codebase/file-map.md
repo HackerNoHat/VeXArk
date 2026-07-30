@@ -11,7 +11,7 @@
 | docs/codebase/change-impact.md | docs | 393 B |
 | docs/codebase/commands.md | docs | 281 B |
 | docs/codebase/data-flow.md | docs | 171 B |
-| docs/codebase/file-map.md | docs | 6.7 KiB |
+| docs/codebase/file-map.md | docs | 6.8 KiB |
 | docs/codebase/overview.md | docs | 1.8 KiB |
 | docs/codebase/python-modules.md | docs | 17 B |
 | docs/FAST_MEDIA_PROTOCOL.md | docs | 2.1 KiB |

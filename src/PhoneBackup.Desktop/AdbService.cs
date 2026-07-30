@@ -11,13 +11,26 @@ public sealed partial class AdbService
 
     public string AdbPath { get; }
 
-    public AdbService()
+    public AdbService() : this(ResolveAdbPath())
+    {
+    }
+
+    internal AdbService(string adbPath)
+    {
+        if (!File.Exists(adbPath))
+            throw new FileNotFoundException(
+                "adb.exe не найден. Установите Android Platform Tools.",
+                adbPath);
+        AdbPath = adbPath;
+    }
+
+    private static string ResolveAdbPath()
     {
         var localSdk = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Android", "Sdk", "platform-tools", "adb.exe");
         var embedded = RuntimeBootstrap.AdbPath;
-        AdbPath = File.Exists(embedded) ? embedded :
+        return File.Exists(embedded) ? embedded :
             File.Exists(localSdk) ? localSdk :
             throw new FileNotFoundException("adb.exe не найден. Установите Android Platform Tools.");
     }

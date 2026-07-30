@@ -70,7 +70,7 @@ public sealed class PackageSelectionViewModel(PackageSnapshot package) : INotify
 
 public sealed class MainViewModel : INotifyPropertyChanged
 {
-    private readonly AdbService _adb = new();
+    private readonly AdbService _adb;
     private readonly IPhoneMediaImportCoordinator _iPhoneMedia = new();
     private readonly Dictionary<string, string> _mediaTransports = new(StringComparer.Ordinal);
     private readonly OperationCancellationController _operationCancellation = new();
@@ -396,8 +396,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand OpenDiagnosticsFolderCommand { get; }
     public AsyncRelayCommand ExportSupportBundleCommand { get; }
 
-    public MainViewModel()
+    public MainViewModel() : this(null)
     {
+    }
+
+    internal MainViewModel(AdbService? adb)
+    {
+        _adb = adb ?? new AdbService();
         RefreshCommand = new(async _ => await RefreshAsync());
         ShowDevicesCommand = new(_ => Show("devices"));
         ShowBackupCommand = new(_ => Show("backup"));

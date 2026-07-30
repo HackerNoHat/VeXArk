@@ -1,6 +1,6 @@
 # Codebase Overview
 
-Generated at: `2026-07-30T18:40:15`
+Generated at: `2026-07-30T18:45:57`
 
 Root: repository root (`.`)
 
@@ -10,7 +10,7 @@ This map is generated from filesystem metadata, README/AGENTS Markdown, and Pyth
 
 - Files indexed: `4501`
 - Python modules: `0`
-- Total bytes indexed by path metadata: `2,228,439,214`
+- Total bytes indexed by path metadata: `2,332,617,238`
 
 ## Top-level Folders
 

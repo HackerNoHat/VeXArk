@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-30T18:40:15",
+  "generated_at": "2026-07-30T18:45:57",
   "root": "D:\\Ilya\\VeXArk",
   "file_count": 4501,
   "python_module_count": 0,
@@ -629,7 +629,7 @@
     {
       "path": "docs/codebase/file-map.md",
       "suffix": ".md",
-      "size": 6911,
+      "size": 6912,
       "kind": "docs"
     },
     {
@@ -641,7 +641,7 @@
     {
       "path": "docs/codebase/overview.md",
       "suffix": ".md",
-      "size": 1832,
+      "size": 1837,
       "kind": "docs"
     },
     {
@@ -2747,7 +2747,7 @@
     {
       "path": "src/PhoneBackup.Core/bin/Release/net9.0/PhoneBackup.Core.pdb",
       "suffix": ".pdb",
-      "size": 110320,
+      "size": 110324,
       "kind": "other"
     },
     {
@@ -2873,7 +2873,7 @@
     {
       "path": "src/PhoneBackup.Core/obj/PhoneBackup.Core.csproj.nuget.dgspec.json",
       "suffix": ".json",
-      "size": 3067,
+      "size": 2498,
       "kind": "data"
     },
     {
@@ -2891,13 +2891,13 @@
     {
       "path": "src/PhoneBackup.Core/obj/project.assets.json",
       "suffix": ".json",
-      "size": 10411,
+      "size": 8200,
       "kind": "data"
     },
     {
       "path": "src/PhoneBackup.Core/obj/project.nuget.cache",
       "suffix": ".cache",
-      "size": 1262,
+      "size": 795,
       "kind": "other"
     },
     {
@@ -2963,7 +2963,7 @@
     {
       "path": "src/PhoneBackup.Core/obj/Release/net9.0/PhoneBackup.Core.pdb",
       "suffix": ".pdb",
-      "size": 110320,
+      "size": 110324,
       "kind": "other"
     },
     {
@@ -3005,7 +3005,7 @@
     {
       "path": "src/PhoneBackup.Desktop/AdbService.cs",
       "suffix": ".cs",
-      "size": 20415,
+      "size": 20770,
       "kind": "other"
     },
     {
@@ -8615,7 +8615,7 @@
     {
       "path": "src/PhoneBackup.Desktop/bin/Dev/Release/net9.0-windows10.0.19041.0/win-x64/PhoneBackup.Core.pdb",
       "suffix": ".pdb",
-      "size": 110320,
+      "size": 110324,
       "kind": "other"
     },
     {
@@ -10139,7 +10139,7 @@
     {
       "path": "src/PhoneBackup.Desktop/bin/Dev/Release/net9.0-windows10.0.19041.0/win-x64/VeXArk-Dev.dll",
       "suffix": ".dll",
-      "size": 12716032,
+      "size": 47442944,
       "kind": "other"
     },
     {
@@ -10151,7 +10151,7 @@
     {
       "path": "src/PhoneBackup.Desktop/bin/Dev/Release/net9.0-windows10.0.19041.0/win-x64/VeXArk-Dev.pdb",
       "suffix": ".pdb",
-      "size": 127696,
+      "size": 127772,
       "kind": "other"
     },
     {
@@ -17663,7 +17663,7 @@
     {
       "path": "src/PhoneBackup.Desktop/MainViewModel.cs",
       "suffix": ".cs",
-      "size": 90586,
+      "size": 90688,
       "kind": "other"
     },
     {
@@ -18029,7 +18029,7 @@
     {
       "path": "src/PhoneBackup.Desktop/obj/Dev/PhoneBackup.Desktop.csproj.nuget.dgspec.json",
       "suffix": ".json",
-      "size": 6803,
+      "size": 6234,
       "kind": "data"
     },
     {
@@ -18173,7 +18173,7 @@
     {
       "path": "src/PhoneBackup.Desktop/obj/Dev/Release/net9.0-windows10.0.19041.0/win-x64/VeXArk-Dev.dll",
       "suffix": ".dll",
-      "size": 12716032,
+      "size": 47442944,
       "kind": "other"
     },
     {
@@ -18185,7 +18185,7 @@
     {
       "path": "src/PhoneBackup.Desktop/obj/Dev/Release/net9.0-windows10.0.19041.0/win-x64/VeXArk-Dev.pdb",
       "suffix": ".pdb",
-      "size": 127696,
+      "size": 127772,
       "kind": "other"
     },
     {
@@ -21167,13 +21167,13 @@
     {
       "path": "tests/PhoneBackup.Desktop.Tests/bin/Release/net9.0-windows10.0.19041.0/PhoneBackup.Core.pdb",
       "suffix": ".pdb",
-      "size": 110320,
+      "size": 110324,
       "kind": "other"
     },
     {
       "path": "tests/PhoneBackup.Desktop.Tests/bin/Release/net9.0-windows10.0.19041.0/PhoneBackup.Desktop.Tests.deps.json",
       "suffix": ".json",
-      "size": 27924,
+      "size": 27966,
       "kind": "data"
     },
     {
@@ -21185,7 +21185,7 @@
     {
       "path": "tests/PhoneBackup.Desktop.Tests/bin/Release/net9.0-windows10.0.19041.0/PhoneBackup.Desktop.Tests.pdb",
       "suffix": ".pdb",
-      "size": 21472,
+      "size": 21512,
       "kind": "other"
     },
     {
@@ -21449,7 +21449,7 @@
     {
       "path": "tests/PhoneBackup.Desktop.Tests/bin/Release/net9.0-windows10.0.19041.0/VeXArk-Dev.dll",
       "suffix": ".dll",
-      "size": 12716032,
+      "size": 47442944,
       "kind": "other"
     },
     {
@@ -21461,7 +21461,7 @@
     {
       "path": "tests/PhoneBackup.Desktop.Tests/bin/Release/net9.0-windows10.0.19041.0/VeXArk-Dev.pdb",
       "suffix": ".pdb",
-      "size": 127696,
+      "size": 127772,
       "kind": "other"
     },
     {
@@ -21779,7 +21779,7 @@
     {
       "path": "tests/PhoneBackup.Desktop.Tests/obj/Release/net9.0-windows10.0.19041.0/PhoneBackup.Desktop.Tests.pdb",
       "suffix": ".pdb",
-      "size": 21472,
+      "size": 21512,
       "kind": "other"
     },
     {
@@ -21803,7 +21803,7 @@
     {
       "path": "tests/PhoneBackup.Desktop.Tests/OperationCancellationControllerTests.cs",
       "suffix": ".cs",
-      "size": 2521,
+      "size": 2796,
       "kind": "other"
     },
     {
