@@ -21,6 +21,7 @@ object AgentState {
     var pendingRestore by mutableStateOf<RestoreApproval?>(null)
     var statusText by mutableStateOf("Agent stopped")
     var progress by mutableStateOf(0f)
+    var diagnosticRevision by mutableStateOf(0L)
 
     fun fingerprint(key: String): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(key.toByteArray())

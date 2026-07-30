@@ -49,7 +49,7 @@ APK and Android Platform Tools; neither an installer nor administrator rights ar
 required.
 
 > Testing iPhone import? Use the
-> [`v0.8.0-beta.1` prerelease](https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.8.0-beta.1).
+> [`v0.8.0-beta.2` prerelease](https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.8.0-beta.2).
 
 ## Why VeXArk
 
@@ -61,6 +61,8 @@ required.
   its DCIM folder structure.
 - **Fast Wi-Fi and resume.** VeXArk benchmarks ADB, encrypted direct LAN and the
   destination disk, copies with up to four workers and resumes interrupted files.
+- **Safe cancellation.** Stop backup, media copying or restore from the status
+  panel without publishing a partial snapshot; Android media resumes next time.
 - **Cable and port tester.** The Desktop client shows the negotiated USB link,
   measures ADB and Fast Wi-Fi without reading personal files, recommends the
   faster transport and estimates transfer time before a long copy.
@@ -160,9 +162,23 @@ cd VeXArk
 .\scripts\build.ps1 -Configuration Release
 ```
 
+To build the side-by-side diagnostic channel:
+
+```powershell
+.\scripts\build.ps1 -Configuration Debug -Channel Dev
+```
+
+If local PowerShell execution policy blocks scripts, run the same command through
+`powershell.exe -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Configuration Debug -Channel Dev`.
+The Dev desktop targets only `com.vex.phonebackup.agent.dev` on port `49322`;
+it does not replace the stable Agent.
+
 Outputs:
 
 - `artifacts/publish/VeXArk.exe`
+- `artifacts/dev/VeXArk-Dev.exe`
+- `artifacts/dev/VeXArk-Agent-Dev.apk`
+- `artifacts/dev/SHA256SUMS.txt`
 - `agent/app/build/outputs/apk/release/app-release.apk`
 
 ## Project status

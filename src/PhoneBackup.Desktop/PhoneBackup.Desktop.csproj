@@ -11,7 +11,18 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <VeXArkChannel Condition="'$(VeXArkChannel)' == ''">Stable</VeXArkChannel>
+    <VeXArkBuildId Condition="'$(VeXArkBuildId)' == ''">local</VeXArkBuildId>
+    <Product Condition="'$(VeXArkChannel)' == 'Dev'">VeXArk Dev</Product>
+    <Product Condition="'$(VeXArkChannel)' != 'Dev'">VeXArk</Product>
+    <AssemblyName Condition="'$(VeXArkChannel)' == 'Dev'">VeXArk-Dev</AssemblyName>
+    <DefineConstants Condition="'$(VeXArkChannel)' == 'Dev'">$(DefineConstants);VEXARK_DEV</DefineConstants>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="VeXArkBuildId" Value="$(VeXArkBuildId)" />
+    <AssemblyMetadata Include="VeXArkChannel" Value="$(VeXArkChannel)" />
+    <InternalsVisibleTo Include="PhoneBackup.Desktop.Tests" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PhoneBackup.Core\PhoneBackup.Core.csproj" />
   </ItemGroup>

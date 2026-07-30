@@ -10,9 +10,12 @@ import com.topjohnwu.superuser.Shell
 class PhoneBackupAgentApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        Shell.enableVerboseLogging = BuildConfig.DEBUG
+        AgentDiagnostics.initialize(this)
+        Shell.enableVerboseLogging = BuildConfig.DIAGNOSTICS_ENABLED
         Shell.setDefaultBuilder(
-            Shell.Builder.create().setFlags(Shell.FLAG_MOUNT_MASTER)
+            Shell.Builder.create()
+                .setFlags(Shell.FLAG_MOUNT_MASTER)
+                .setTimeout(90)
         )
         val language = getSharedPreferences("vexark_ui", MODE_PRIVATE)
             .getString("language", "en")

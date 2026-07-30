@@ -6,6 +6,9 @@ namespace PhoneBackup.Desktop;
 
 public sealed partial class AdbService
 {
+    private const string AgentActivityClass =
+        "com.vex.phonebackup.agent.MainActivity";
+
     public string AdbPath { get; }
 
     public AdbService()
@@ -62,6 +65,36 @@ public sealed partial class AdbService
         return output.Contains("package:", StringComparison.Ordinal);
     }
 
+    public async Task<InstalledAgentInfo?> GetInstalledAgentInfoAsync(
+        string serial,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await IsAgentInstalledAsync(serial, cancellationToken)) return null;
+        var output = await RunAsync(
+            ["-s", serial, "shell", "dumpsys", "package", AgentPackage],
+            cancellationToken,
+            false);
+        var versionName = Regex.Match(output, @"(?m)^\s*versionName=(?<value>\S+)\s*$")
+            .Groups["value"].Value;
+        var versionCodeText = Regex.Match(output, @"(?m)^\s*versionCode=(?<value>\d+)")
+            .Groups["value"].Value;
+        var userIdText = Regex.Match(output, @"(?m)^\s*userId=(?<value>\d+)\s*$")
+            .Groups["value"].Value;
+        int.TryParse(versionCodeText, out var versionCode);
+        int.TryParse(userIdText, out var userId);
+
+        var hashOutput = await RunAsync(
+            [
+                "-s", serial, "shell", "sh", "-c",
+                $"apk=$(pm path {AgentPackage} | head -n 1 | cut -d: -f2); " +
+                "if [ -n \"$apk\" ]; then sha256sum \"$apk\"; fi"
+            ],
+            cancellationToken,
+            false);
+        var sha256 = Regex.Match(hashOutput, @"(?i)\b[0-9a-f]{64}\b").Value.ToLowerInvariant();
+        return new(AgentPackage, versionName, versionCode, userId, sha256);
+    }
+
     public async Task InstallAgentAsync(string serial, string apkPath, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(apkPath))
@@ -96,13 +129,16 @@ public sealed partial class AdbService
 
     public async Task LaunchAgentAsync(string serial, CancellationToken cancellationToken = default) =>
         _ = await RunAsync(
-            ["-s", serial, "shell", "am", "start", "-n", $"{AgentPackage}/.MainActivity"],
+            [
+                "-s", serial, "shell", "am", "start", "-n",
+                $"{AgentPackage}/{AgentActivityClass}"
+            ],
             cancellationToken);
 
     public async Task<int> ForwardAgentPortAsync(string serial, CancellationToken cancellationToken = default)
     {
         var output = await RunAsync(
-            ["-s", serial, "forward", "tcp:0", $"tcp:{ProtocolConstants.AgentPort}"],
+            ["-s", serial, "forward", "tcp:0", $"tcp:{AppRuntimeProfile.AgentPort}"],
             cancellationToken);
         if (!int.TryParse(output.Trim(), out var port))
             throw new InvalidOperationException($"ADB не вернул локальный порт: {output}");
@@ -122,7 +158,7 @@ public sealed partial class AdbService
             throwOnError: false);
     }
 
-    public const string AgentPackage = "com.vex.phonebackup.agent";
+    public static string AgentPackage => AppRuntimeProfile.AgentPackage;
 
     public async Task InstallMultipleAsync(
         string serial,
@@ -284,15 +320,67 @@ public sealed partial class AdbService
         CancellationToken cancellationToken,
         bool throwOnError = true)
     {
+        var stopwatch = Stopwatch.StartNew();
+        var safeArguments = DesktopDiagnostics.SanitizeAdbArguments(arguments);
+        DesktopDiagnostics.Log(
+            "info",
+            "adb",
+            "command_started",
+            "ADB command started",
+            fields: new Dictionary<string, object?>
+            {
+                ["arguments"] = string.Join(" ", safeArguments)
+            });
         var start = CreateStartInfo(arguments);
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("Не удалось запустить ADB.");
-        var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var stderr = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        var result = (await stdout) + (await stderr);
-        if (throwOnError && process.ExitCode != 0)
-            throw new InvalidOperationException(result.Trim());
-        return result;
+        try
+        {
+            using var process = Process.Start(start) ??
+                                throw new InvalidOperationException("Не удалось запустить ADB.");
+            var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var stderr = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            var standardOutput = await stdout;
+            var standardError = await stderr;
+            var result = standardOutput + standardError;
+            var safeStandardOutput = DesktopDiagnostics.SanitizeAdbOutput(
+                arguments,
+                standardOutput);
+            var safeStandardError = DesktopDiagnostics.SanitizeAdbOutput(
+                arguments,
+                standardError);
+            DesktopDiagnostics.Log(
+                process.ExitCode == 0 ? "info" : "warn",
+                "adb",
+                "command_completed",
+                "ADB command completed",
+                durationMs: stopwatch.ElapsedMilliseconds,
+                result: process.ExitCode.ToString(),
+                fields: new Dictionary<string, object?>
+                {
+                    ["arguments"] = string.Join(" ", safeArguments),
+                    ["exitCode"] = process.ExitCode,
+                    ["stdout"] = safeStandardOutput,
+                    ["stderr"] = safeStandardError
+                });
+            if (throwOnError && process.ExitCode != 0)
+                throw new InvalidOperationException(result.Trim());
+            return result;
+        }
+        catch (Exception error)
+        {
+            DesktopDiagnostics.Log(
+                "error",
+                "adb",
+                "command_failed",
+                "ADB command failed",
+                durationMs: stopwatch.ElapsedMilliseconds,
+                error: error,
+                fields: new Dictionary<string, object?>
+                {
+                    ["arguments"] = string.Join(" ", safeArguments)
+                });
+            throw;
+        }
     }
 
     private ProcessStartInfo CreateStartInfo(IReadOnlyList<string> arguments)
@@ -378,3 +466,10 @@ public sealed partial class AdbService
         }
     }
 }
+
+public sealed record InstalledAgentInfo(
+    string PackageName,
+    string VersionName,
+    int VersionCode,
+    int UserId,
+    string Sha256);

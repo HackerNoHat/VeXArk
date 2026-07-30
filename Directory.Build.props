@@ -5,6 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
-    <Version>0.8.0-beta.1</Version>
+    <Version>0.8.0-beta.2</Version>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'PhoneBackup.Desktop'">
+    <VeXArkChannel Condition="'$(VeXArkChannel)' == ''">Stable</VeXArkChannel>
+    <BaseIntermediateOutputPath>obj\$(VeXArkChannel)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin\$(VeXArkChannel)\</BaseOutputPath>
+    <DefaultItemExcludes>
+      $(DefaultItemExcludes);obj\**;bin\**
+    </DefaultItemExcludes>
   </PropertyGroup>
 </Project>

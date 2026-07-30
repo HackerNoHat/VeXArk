@@ -9,6 +9,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Title = AppRuntimeProfile.ProductName;
         DataContext = new MainViewModel();
         Loaded += async (_, _) =>
         {

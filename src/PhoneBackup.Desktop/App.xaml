@@ -157,6 +157,19 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+            <Setter Property="Padding" Value="14,9"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#22FFA1A8"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource DangerBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="IconButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
             <Setter Property="FontSize" Value="15"/>
@@ -457,4 +470,3 @@
         </Style>
     </Application.Resources>
 </Application>
-

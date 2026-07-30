@@ -1,6 +1,8 @@
-param(
+﻿param(
     [ValidateSet("Debug", "Release")]
-    [string]$Configuration = "Release"
+    [string]$Configuration = "Release",
+    [ValidateSet("Stable", "Dev")]
+    [string]$Channel = "Stable"
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,7 +14,9 @@ if (-not $env:VEXARK_KEYSTORE_PATH -and (Test-Path -LiteralPath $localSigning)) 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $dotnetCommand = Get-Command dotnet -ErrorAction SilentlyContinue
 $dotnetCandidates = @(
+    if ($env:VEXARK_DOTNET) { $env:VEXARK_DOTNET }
     (Join-Path $env:USERPROFILE ".dotnet\dotnet.exe")
+    (Join-Path $env:TEMP "vexark-dotnet-sdk-9\dotnet.exe")
     if ($dotnetCommand) { $dotnetCommand.Source }
 ) | Select-Object -Unique
 $dotnet = $dotnetCandidates |
@@ -28,14 +32,26 @@ $androidSdk = if ($env:ANDROID_HOME) {
 } else {
     Join-Path $env:LOCALAPPDATA "Android\Sdk"
 }
-$javaHome = if ($env:JAVA_HOME) {
-    $env:JAVA_HOME
-} else {
-    Join-Path $env:USERPROFILE ".gradle\jdks\jetbrains_s_r_o_-21-amd64-windows.2"
-}
+$javaCandidates = @(
+    if ($env:JAVA_HOME) { $env:JAVA_HOME }
+    "C:\Program Files\Android\Android Studio\jbr"
+    (Join-Path $env:USERPROFILE ".gradle\jdks\jetbrains_s_r_o_-21-amd64-windows.2")
+) | Select-Object -Unique
+$javaHome = $javaCandidates |
+    Where-Object {
+        $javaExe = Join-Path $_ "bin\java.exe"
+        if (-not (Test-Path -LiteralPath $javaExe)) { return $false }
+        return (Get-Item -LiteralPath $javaExe).VersionInfo.ProductMajorPart -ge 17
+    } |
+    Select-Object -First 1
 $embedded = Join-Path $projectRoot "src\PhoneBackup.Desktop\Embedded"
-$publish = Join-Path $projectRoot "artifacts\publish"
+$publish = if ($Channel -eq "Dev") {
+    Join-Path $projectRoot "artifacts\dev\publish"
+} else {
+    Join-Path $projectRoot "artifacts\publish"
+}
 $releaseArtifacts = Join-Path $projectRoot "artifacts\release"
+$devArtifacts = Join-Path $projectRoot "artifacts\dev"
 $cargoCommand = Get-Command cargo -ErrorAction SilentlyContinue
 $cargo = if ($cargoCommand) { $cargoCommand.Source } else { $null }
 if (-not $cargo) { $cargo = Join-Path $env:USERPROFILE ".cargo\bin\cargo.exe" }
@@ -60,9 +76,16 @@ if (-not (Test-Path (Join-Path $androidSdk "platform-tools\adb.exe"))) {
 if (-not (Test-Path $cargo)) { throw "Rust/Cargo не найден: $cargo" }
 if (-not (Test-Path $ndkHome)) { throw "Android NDK 29 не найден: $ndkHome" }
 
+$gitSha = (& git -C $projectRoot rev-parse --short=12 HEAD 2>$null).Trim()
+if ([string]::IsNullOrWhiteSpace($gitSha)) { $gitSha = "local" }
+$gitDirty = -not [string]::IsNullOrWhiteSpace(
+    ((& git -C $projectRoot status --porcelain 2>$null) -join "`n"))
+$buildId = if ($gitDirty) { "$gitSha-dirty" } else { $gitSha }
+
 $env:JAVA_HOME = $javaHome
 $env:ANDROID_HOME = $androidSdk
 $env:ANDROID_NDK_HOME = $ndkHome
+$env:VEXARK_BUILD_ID = $buildId
 
 Push-Location (Join-Path $projectRoot "helper")
 try {
@@ -81,7 +104,13 @@ Copy-Item (Join-Path $projectRoot "helper\target\aarch64-linux-android\release\p
 
 Push-Location (Join-Path $projectRoot "agent")
 try {
-    $agentTask = if ($Configuration -eq "Release") { ":app:assembleRelease" } else { ":app:assembleDebug" }
+    $agentTask = if ($Channel -eq "Dev") {
+        ":app:assembleDev"
+    } elseif ($Configuration -eq "Release") {
+        ":app:assembleRelease"
+    } else {
+        ":app:assembleDebug"
+    }
     & ".\gradlew.bat" ":app:testDebugUnitTest" $agentTask "--no-daemon"
     if ($LASTEXITCODE -ne 0) { throw "Сборка Android Agent завершилась ошибкой." }
 }
@@ -93,12 +122,16 @@ New-Item -ItemType Directory -Force -Path $embedded | Out-Null
 Copy-Item (Join-Path $androidSdk "platform-tools\adb.exe") $embedded -Force
 Copy-Item (Join-Path $androidSdk "platform-tools\AdbWinApi.dll") $embedded -Force
 Copy-Item (Join-Path $androidSdk "platform-tools\AdbWinUsbApi.dll") $embedded -Force
-$agentApk = if ($Configuration -eq "Release") {
+$agentApk = if ($Channel -eq "Dev") {
+    Join-Path $projectRoot "agent\app\build\outputs\apk\dev\app-dev.apk"
+} elseif ($Configuration -eq "Release") {
     Join-Path $projectRoot "agent\app\build\outputs\apk\release\app-release.apk"
 } else {
     Join-Path $projectRoot "agent\app\build\outputs\apk\debug\app-debug.apk"
 }
-$apkMetadataPath = if ($Configuration -eq "Release") {
+$apkMetadataPath = if ($Channel -eq "Dev") {
+    Join-Path $projectRoot "agent\app\build\outputs\apk\dev\output-metadata.json"
+} elseif ($Configuration -eq "Release") {
     Join-Path $projectRoot "agent\app\build\outputs\apk\release\output-metadata.json"
 } else {
     Join-Path $projectRoot "agent\app\build\outputs\apk\debug\output-metadata.json"
@@ -109,11 +142,51 @@ if (-not (Test-Path -LiteralPath $agentApk)) {
 if (-not (Test-Path -LiteralPath $apkMetadataPath)) {
     throw "Метаданные Android Agent не найдены: $apkMetadataPath"
 }
-$projectVersion = ([xml](Get-Content -Raw (Join-Path $projectRoot "Directory.Build.props"))).Project.PropertyGroup.Version
+if ($Channel -eq "Stable" -and $Configuration -eq "Release") {
+    $expectedSigningCertificate = if ($env:VEXARK_STABLE_SIGNING_CERT_SHA256) {
+        $env:VEXARK_STABLE_SIGNING_CERT_SHA256.Trim().ToLowerInvariant()
+    } else {
+        "1f90562d1d034944be01148e8b09be10c1dc54b37415ef87bc4a18ac10c52489"
+    }
+    $apksigner = Get-ChildItem -LiteralPath (Join-Path $androidSdk "build-tools") `
+        -Directory |
+        Sort-Object { [version]$_.Name } -Descending |
+        ForEach-Object { Join-Path $_.FullName "apksigner.bat" } |
+        Where-Object { Test-Path -LiteralPath $_ } |
+        Select-Object -First 1
+    if (-not $apksigner) {
+        throw "apksigner не найден в Android SDK: $androidSdk"
+    }
+    $signerOutput = (& $apksigner verify --print-certs $agentApk 2>&1) -join "`n"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Проверка подписи Android Agent завершилась ошибкой: $signerOutput"
+    }
+    $certificateMatch = [regex]::Match(
+        $signerOutput,
+        "Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]{64})")
+    if (-not $certificateMatch.Success) {
+        throw "apksigner не вернул SHA-256 сертификата Android Agent."
+    }
+    $actualSigningCertificate = $certificateMatch.Groups[1].Value.ToLowerInvariant()
+    if ($actualSigningCertificate -ne $expectedSigningCertificate) {
+        throw "APK подписан неверным сертификатом: $actualSigningCertificate; " +
+              "stable ожидает $expectedSigningCertificate. Публикация заблокирована."
+    }
+}
+$projectProperties = [xml](Get-Content -Raw (Join-Path $projectRoot "Directory.Build.props"))
+$projectVersion = @($projectProperties.Project.PropertyGroup.Version) |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+    Select-Object -First 1
+$projectVersion = $projectVersion.Trim()
 $apkMetadata = Get-Content -Raw $apkMetadataPath | ConvertFrom-Json
 $apkVersion = $apkMetadata.elements[0].versionName
-if ($apkVersion -ne $projectVersion) {
+$expectedApkVersion = if ($Channel -eq "Dev") { "$projectVersion-dev" } else { $projectVersion }
+if ($apkVersion -ne $expectedApkVersion) {
     throw "Версия Android Agent ($apkVersion) не совпадает с версией desktop ($projectVersion)."
+}
+if ($Channel -eq "Dev" -and
+    $apkMetadata.applicationId -ne "com.vex.phonebackup.agent.dev") {
+    throw "Dev Agent собран с неожиданным package ID: $($apkMetadata.applicationId)"
 }
 Copy-Item $agentApk `
     (Join-Path $embedded "phonebackup-agent.apk") -Force
@@ -122,9 +195,15 @@ Copy-Item $agentApk `
     "--configuration" $Configuration "--nologo"
 if ($LASTEXITCODE -ne 0) { throw "Core tests завершились ошибкой." }
 
+& $dotnet test (Join-Path $projectRoot "tests\PhoneBackup.Desktop.Tests\PhoneBackup.Desktop.Tests.csproj") `
+    "--configuration" $Configuration "--nologo" `
+    "-p:VeXArkChannel=$Channel" "-p:VeXArkBuildId=$buildId"
+if ($LASTEXITCODE -ne 0) { throw "Desktop tests завершились ошибкой." }
+
 & $dotnet publish (Join-Path $projectRoot "src\PhoneBackup.Desktop\PhoneBackup.Desktop.csproj") `
     "--configuration" $Configuration "--runtime" "win-x64" "--self-contained" "true" `
-    "--output" $publish "--nologo"
+    "--output" $publish "--nologo" `
+    "-p:VeXArkChannel=$Channel" "-p:VeXArkBuildId=$buildId"
 if ($LASTEXITCODE -ne 0) { throw "Сборка VeXArk.exe завершилась ошибкой." }
 
 $legacyExecutables = @("PhoneBackup.exe", "MobiArk.exe")
@@ -139,12 +218,30 @@ foreach ($legacyName in $legacyExecutables) {
         }
     }
 }
-Get-ChildItem -LiteralPath $publish -Filter "*.pdb" | Remove-Item -Force
+if ($Channel -ne "Dev") {
+    Get-ChildItem -LiteralPath $publish -Filter "*.pdb" | Remove-Item -Force
+}
 Copy-Item (Join-Path $projectRoot "LICENSE") (Join-Path $publish "LICENSE.txt") -Force
 Copy-Item (Join-Path $projectRoot "NOTICE") (Join-Path $publish "NOTICE.txt") -Force
 
-$exe = Join-Path $publish "VeXArk.exe"
-if ($Configuration -eq "Release") {
+$exeName = if ($Channel -eq "Dev") { "VeXArk-Dev.exe" } else { "VeXArk.exe" }
+$exe = Join-Path $publish $exeName
+if ($Channel -eq "Dev") {
+    New-Item -ItemType Directory -Force -Path $devArtifacts | Out-Null
+    $devExe = Join-Path $devArtifacts "VeXArk-Dev.exe"
+    $devApk = Join-Path $devArtifacts "VeXArk-Agent-Dev.apk"
+    Copy-Item $exe $devExe -Force
+    Copy-Item $agentApk $devApk -Force
+
+    $checksumPath = Join-Path $devArtifacts "SHA256SUMS.txt"
+    $checksumLines = @($devExe, $devApk) |
+        Sort-Object { Split-Path -Leaf $_ } |
+        ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $(Split-Path -Leaf $_)"
+        }
+    Set-Content -LiteralPath $checksumPath -Value $checksumLines -Encoding ascii
+} elseif ($Configuration -eq "Release") {
     New-Item -ItemType Directory -Force -Path $releaseArtifacts | Out-Null
     $releaseExe = Join-Path $releaseArtifacts "VeXArk.exe"
     $releaseApk = Join-Path $releaseArtifacts "VeXArk-Agent.apk"
@@ -163,6 +260,9 @@ if ($Configuration -eq "Release") {
 Write-Host ""
 Write-Host "Готово: $exe"
 Write-Host ("Размер: {0:N1} МБ" -f ((Get-Item $exe).Length / 1MB))
-if ($Configuration -eq "Release") {
+if ($Channel -eq "Dev") {
+    Write-Host "Dev-артефакты: $devArtifacts"
+    Write-Host "Build ID: $buildId"
+} elseif ($Configuration -eq "Release") {
     Write-Host "Release-артефакты: $releaseArtifacts"
 }

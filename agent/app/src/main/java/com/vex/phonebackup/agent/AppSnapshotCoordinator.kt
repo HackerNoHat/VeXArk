@@ -26,8 +26,45 @@ object AppSnapshotCoordinator {
     fun end(packageName: String): Boolean {
         if (!packagePattern.matches(packageName)) return false
         val wasStopped = originalStoppedState.remove(packageName) ?: return false
-        return wasStopped ||
-            Shell.cmd("cmd package set-stopped-state --user 0 false $packageName").exec().isSuccess
+        if (wasStopped) return true
+
+        val commands = listOf(
+            "cmd package unstop --user 0 $packageName",
+            "cmd package set-stopped-state --user 0 false $packageName"
+        )
+        for ((index, command) in commands.withIndex()) {
+            val result = Shell.cmd(command).exec()
+            if (result.isSuccess) {
+                AgentDiagnostics.log(
+                    level = "info",
+                    component = "snapshot",
+                    eventCode = "package_unstopped",
+                    message = "Package stopped-state restored",
+                    result = "ok",
+                    fields = mapOf(
+                        "packageName" to packageName,
+                        "strategy" to if (index == 0) "package_unstop" else "legacy_set_stopped_state",
+                        "exitCode" to result.code
+                    )
+                )
+                return true
+            }
+            AgentDiagnostics.log(
+                level = "warn",
+                component = "snapshot",
+                eventCode = "package_unstop_failed",
+                message = "Package stopped-state restore command failed",
+                result = "failed",
+                fields = mapOf(
+                    "packageName" to packageName,
+                    "strategy" to if (index == 0) "package_unstop" else "legacy_set_stopped_state",
+                    "exitCode" to result.code,
+                    "stdout" to result.out.joinToString("\n").trim(),
+                    "stderr" to result.err.joinToString("\n").trim()
+                )
+            )
+        }
+        return false
     }
 
     fun prepareRestore(packageName: String): Boolean {

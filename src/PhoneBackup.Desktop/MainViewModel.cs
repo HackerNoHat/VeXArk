@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -15,7 +16,7 @@ public sealed class DeviceViewModel
     public string DisplayName => $"{Inventory.Model}  •  {Inventory.Device}";
     public string RomLine => $"Android {Inventory.AndroidVersion} (SDK {Inventory.Sdk})  •  {Inventory.Fingerprint}";
     public string RootLabel => Inventory.Root == RootState.Unavailable
-        ? LocalizationManager.T("Root не найден")
+        ? LocalizationManager.T("Root проверяется Android Agent")
         : $"Root: {Inventory.Root}";
     public string TransportLabel => string.Join(" + ", Inventory.Transports.Select(x => x.Kind).Distinct());
     public string StorageLabel => Inventory.DataTotalBytes == 0
@@ -72,6 +73,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private readonly AdbService _adb = new();
     private readonly IPhoneMediaImportCoordinator _iPhoneMedia = new();
     private readonly Dictionary<string, string> _mediaTransports = new(StringComparer.Ordinal);
+    private readonly OperationCancellationController _operationCancellation = new();
     private string _page = "devices";
     private string _statusText = "Готово";
     private bool _isBusy;
@@ -92,12 +94,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
         "Подключите телефон и запустите тест. Реальные файлы не копируются.";
     private double _connectionTestProgress;
     private bool _isConnectionTestRunning;
+    private string _diagnosticsSummary =
+        "Запустите проверку Agent Dev или Root test, чтобы увидеть полную цепочку.";
+    private AgentPreflightResult? _lastAgentPreflight;
+    private AgentDiagnosticsSnapshot? _lastAgentDiagnostics;
 
     public ObservableCollection<DeviceViewModel> Devices { get; } = [];
     public ObservableCollection<IPhoneMediaSourceViewModel> IPhoneSources { get; } = [];
     public ObservableCollection<string> SnapshotLines { get; } = [];
     public ObservableCollection<SnapshotViewModel> Snapshots { get; } = [];
     public ObservableCollection<PackageSelectionViewModel> BackupPackages { get; } = [];
+    public ObservableCollection<string> DiagnosticLines { get; } = [];
 
     public string PageTitle => LocalizationManager.T(_page switch
     {
@@ -106,6 +113,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         "restore" => "Восстановить",
         "history" => "История",
         "settings" => "Настройки",
+        "diagnostics" => "Diagnostics — DEV",
         _ => "Устройства"
     });
     public string PageSubtitle => LocalizationManager.T(_page switch
@@ -117,6 +125,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         "restore" => "Compatibility engine не применяет опасные данные автоматически",
         "history" => RepositoryPath,
         "settings" => "Локальный зашифрованный репозиторий",
+        "diagnostics" => "ADB → Agent hello → pairing → root_request → KernelSU/libsu",
         _ => "USB и Wireless ADB объединяются по физическому устройству"
     });
 
@@ -126,25 +135,36 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public Visibility RestoreVisibility => Visible("restore");
     public Visibility HistoryVisibility => Visible("history");
     public Visibility SettingsVisibility => Visible("settings");
+    public Visibility DiagnosticsVisibility => Visible("diagnostics");
+    public Visibility DiagnosticsNavigationVisibility =>
+        AppRuntimeProfile.IsDev ? Visibility.Visible : Visibility.Collapsed;
     public bool IsDevicesPage => _page == "devices";
     public bool IsBackupPage => _page == "backup";
     public bool IsMediaPage => _page == "media";
     public bool IsRestorePage => _page == "restore";
     public bool IsHistoryPage => _page == "history";
     public bool IsSettingsPage => _page == "settings";
+    public bool IsDiagnosticsPage => _page == "diagnostics";
 
     public string StatusText
     {
         get => LocalizationManager.T(_statusText);
         set => Set(ref _statusText, value);
     }
-    public string AppVersion =>
-        typeof(MainViewModel).Assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-            .InformationalVersion.Split('+')[0] ??
-        typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ??
-        "0.8.0-beta.1";
+    public string AppVersion => AppRuntimeProfile.VersionName;
+    public string ProductName => AppRuntimeProfile.ProductName;
+    public string DiagnosticsSummary
+    {
+        get => _diagnosticsSummary;
+        set => Set(ref _diagnosticsSummary, value);
+    }
     public bool IsBusy { get => _isBusy; set => Set(ref _isBusy, value); }
+    public bool CanCancelOperation => _operationCancellation.CanCancel;
+    public Visibility CancelOperationVisibility =>
+        _operationCancellation.IsActive ? Visibility.Visible : Visibility.Collapsed;
+    public string CancelOperationText =>
+        LocalizationManager.T(
+            CanCancelOperation ? "Отменить копирование" : "Отмена…");
     public DeviceViewModel? SelectedDevice
     {
         get => _selectedDevice;
@@ -192,7 +212,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string DevicesFoundLabel =>
         LocalizationManager.IsRussian ? $"Найдено: {Devices.Count}" : $"Found: {Devices.Count}";
     public string VersionLabel =>
-        $"{AppVersion} • {(LocalizationManager.IsRussian ? "полностью офлайн" : "fully offline")}";
+        $"{AppVersion}{(AppRuntimeProfile.IsDev ? " DEV" : string.Empty)} • " +
+        $"{(LocalizationManager.IsRussian ? "полностью офлайн" : "fully offline")}";
     public string MediaExportReportText
     {
         get => LocalizationManager.T(_mediaExportReportText);
@@ -340,10 +361,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand ShowRestoreCommand { get; }
     public RelayCommand ShowHistoryCommand { get; }
     public RelayCommand ShowSettingsCommand { get; }
+    public RelayCommand ShowDiagnosticsCommand { get; }
     public RelayCommand SelectDeviceCommand { get; }
     public AsyncRelayCommand InstallAgentCommand { get; }
     public AsyncRelayCommand CreateRepositoryCommand { get; }
     public AsyncRelayCommand StartBackupCommand { get; }
+    public RelayCommand CancelOperationCommand { get; }
     public AsyncRelayCommand LoadSnapshotsCommand { get; }
     public AsyncRelayCommand RestoreSnapshotCommand { get; }
     public AsyncRelayCommand VerifyRepositoryCommand { get; }
@@ -364,6 +387,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public AsyncRelayCommand TestConnectionCommand { get; }
     public AsyncRelayCommand ExportSnapshotBundleCommand { get; }
     public AsyncRelayCommand ImportSnapshotBundleCommand { get; }
+    public AsyncRelayCommand CheckAgentDevCommand { get; }
+    public AsyncRelayCommand InstallOrUpdateAgentDevCommand { get; }
+    public AsyncRelayCommand RunRootDiagnosticCommand { get; }
+    public AsyncRelayCommand RefreshAgentDiagnosticsCommand { get; }
+    public RelayCommand ClearDiagnosticsCommand { get; }
+    public RelayCommand CopyDiagnosticsCommand { get; }
+    public RelayCommand OpenDiagnosticsFolderCommand { get; }
+    public AsyncRelayCommand ExportSupportBundleCommand { get; }
 
     public MainViewModel()
     {
@@ -374,6 +405,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         ShowRestoreCommand = new(_ => Show("restore"));
         ShowHistoryCommand = new(_ => Show("history"));
         ShowSettingsCommand = new(_ => Show("settings"));
+        ShowDiagnosticsCommand = new(_ => Show("diagnostics"));
         SelectDeviceCommand = new(device =>
         {
             SelectedDevice = device as DeviceViewModel;
@@ -382,6 +414,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
         InstallAgentCommand = new(InstallAgentAsync);
         CreateRepositoryCommand = new(CreateRepositoryAsync);
         StartBackupCommand = new(StartBackupAsync);
+        CancelOperationCommand = new(
+            _ => CancelActiveOperation(),
+            _ => CanCancelOperation);
         LoadSnapshotsCommand = new(LoadSnapshotsAsync);
         RestoreSnapshotCommand = new(RestoreSnapshotAsync);
         VerifyRepositoryCommand = new(VerifyRepositoryAsync);
@@ -407,6 +442,36 @@ public sealed class MainViewModel : INotifyPropertyChanged
         TestConnectionCommand = new(TestConnectionAsync);
         ExportSnapshotBundleCommand = new(ExportSnapshotBundleAsync);
         ImportSnapshotBundleCommand = new(ImportSnapshotBundleAsync);
+        CheckAgentDevCommand = new(CheckAgentDevAsync);
+        InstallOrUpdateAgentDevCommand = new(InstallOrUpdateAgentDevAsync);
+        RunRootDiagnosticCommand = new(RunRootDiagnosticAsync);
+        RefreshAgentDiagnosticsCommand = new(RefreshAgentDiagnosticsAsync);
+        ClearDiagnosticsCommand = new(_ =>
+        {
+            DesktopDiagnostics.ClearView();
+            _lastAgentDiagnostics = null;
+            RefreshDiagnosticLines();
+        });
+        CopyDiagnosticsCommand = new(_ =>
+        {
+            var text = DiagnosticsSummary + Environment.NewLine + Environment.NewLine +
+                       string.Join(Environment.NewLine, DiagnosticLines);
+            Clipboard.SetText(text);
+            StatusText = "Диагностика скопирована.";
+        });
+        OpenDiagnosticsFolderCommand = new(_ =>
+        {
+            Directory.CreateDirectory(DesktopDiagnostics.LogDirectory);
+            Process.Start(new ProcessStartInfo(
+                "explorer.exe",
+                DesktopDiagnostics.LogDirectory)
+            {
+                UseShellExecute = true
+            });
+        });
+        ExportSupportBundleCommand = new(ExportSupportBundleAsync);
+        DesktopDiagnostics.EventWritten += OnDiagnosticEvent;
+        RefreshDiagnosticLines();
         ChooseMediaDestinationCommand = new(_ =>
         {
             var dialog = new OpenFolderDialog
@@ -488,6 +553,286 @@ public sealed class MainViewModel : INotifyPropertyChanged
         });
     }
 
+    private async Task CheckAgentDevAsync(object? _)
+    {
+        if (!TryGetDiagnosticDevice(out var device)) return;
+        await BusyAsync("Проверка Agent Dev…", async () =>
+        {
+            _lastAgentPreflight = await new AgentPreflight(_adb)
+                .CheckAsync(device.PreferredSerial);
+            DiagnosticsSummary = FormatPreflight(_lastAgentPreflight);
+            RefreshDiagnosticLines();
+            StatusText = _lastAgentPreflight.Summary;
+        });
+    }
+
+    private async Task InstallOrUpdateAgentDevAsync(object? _)
+    {
+        if (!TryGetDiagnosticDevice(out var device)) return;
+        if (!AppRuntimeProfile.IsDev)
+        {
+            MessageBox.Show("Установка Agent Dev доступна только из VeXArk Dev.");
+            return;
+        }
+        if (!File.Exists(_adb.AgentApkPath))
+        {
+            MessageBox.Show("В VeXArk Dev не встроен Agent Dev APK.");
+            return;
+        }
+        if (MessageBox.Show(
+                $"Установить или обновить {AppRuntimeProfile.AgentPackage}?\n\n" +
+                "Stable Agent останется установленным и не будет изменён.",
+                "VeXArk Agent Dev",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Question) != MessageBoxResult.OK)
+            return;
+
+        await BusyAsync("Установка Agent Dev…", async () =>
+        {
+            await _adb.InstallAgentAsync(device.PreferredSerial, _adb.AgentApkPath);
+            await _adb.LaunchAgentAsync(device.PreferredSerial);
+            _lastAgentPreflight = await new AgentPreflight(_adb)
+                .CheckAsync(device.PreferredSerial);
+            DiagnosticsSummary = FormatPreflight(_lastAgentPreflight) +
+                                 Environment.NewLine +
+                                 "Выдайте KernelSU-доступ именно VeXArk Agent Dev и " +
+                                 "подтвердите компьютер на телефоне.";
+            RefreshDiagnosticLines();
+            StatusText = _lastAgentPreflight.Compatible
+                ? "Agent Dev установлен. Выдайте root и подтвердите компьютер."
+                : _lastAgentPreflight.Summary;
+        });
+    }
+
+    private async Task RunRootDiagnosticAsync(object? _)
+    {
+        if (!TryGetDiagnosticDevice(out var device)) return;
+        await BusyAsync("Root test: проверка Agent Dev…", async () =>
+        {
+            var stages = new List<string>
+            {
+                $"✓ ADB: {device.Inventory.Model}, " +
+                $"transport={device.Inventory.Transports.First(x => x.IsPreferred).Kind}."
+            };
+            var currentStage = "Agent preflight";
+            try
+            {
+                _lastAgentPreflight = await new AgentPreflight(_adb)
+                    .CheckAsync(device.PreferredSerial);
+                if (!_lastAgentPreflight.Compatible)
+                {
+                    stages.Add("✗ Agent launch → hello → build preflight.");
+                    DiagnosticsSummary = string.Join(Environment.NewLine, stages) +
+                                         Environment.NewLine +
+                                         FormatPreflight(_lastAgentPreflight);
+                    RefreshDiagnosticLines();
+                    throw new InvalidOperationException(
+                        FormatPreflight(_lastAgentPreflight) +
+                        Environment.NewLine +
+                        "Нажмите «Установить/обновить Agent Dev».");
+                }
+                stages.Add("✓ Agent launch → hello → build preflight.");
+
+                currentStage = "Pairing";
+                StatusText = "Root test: подключение и pairing…";
+                await using var agent = await AgentClient.ConnectAsync(
+                    _adb,
+                    device.PreferredSerial);
+                if (!await agent.PairWithApprovalAsync(
+                        TimeSpan.FromSeconds(60),
+                        new Progress<string>(text => StatusText = text)))
+                    throw new TimeoutException("Компьютер не подтверждён в Agent Dev.");
+                stages.Add("✓ Pairing: Desktop подтверждён.");
+
+                currentStage = "Root request";
+                var build = await agent.GetBuildInfoAsync();
+                StatusText = "Root test: KernelSU/libsu…";
+                var root = await agent.RequestRootDetailsAsync();
+                stages.Add(
+                    $"{(root.Granted ? "✓" : "✗")} root_request: " +
+                    $"granted={root.Granted}, provider={root.Provider}.");
+                stages.Add(
+                    $"{(root.RootDataReady ? "✓" : "✗")} root-helper: " +
+                    $"ok={root.Helper?.Ok}, uid={root.Helper?.Uid?.ToString() ?? "—"}.");
+
+                currentStage = "Agent diagnostics";
+                _lastAgentDiagnostics = await agent.GetDiagnosticsSnapshotAsync();
+                stages.Add($"✓ diagnostics_snapshot: {_lastAgentDiagnostics.Events.Count} events.");
+                DiagnosticsSummary = string.Join(Environment.NewLine, stages) +
+                                     Environment.NewLine +
+                                     Environment.NewLine +
+                                     FormatRootDiagnostic(build, root);
+                RefreshDiagnosticLines();
+                StatusText = root.RootDataReady
+                    ? $"Root и helper готовы: {root.Provider}."
+                    : root.Granted
+                        ? "Root предоставлен, но root-helper не готов."
+                        : $"Root не предоставлен: {root.Detail}";
+            }
+            catch (Exception error)
+            {
+                if (!stages.Any(x => x.StartsWith("✗", StringComparison.Ordinal)))
+                    stages.Add($"✗ {currentStage}: {error.Message}");
+                if (string.IsNullOrWhiteSpace(DiagnosticsSummary) ||
+                    !DiagnosticsSummary.Contains(stages[0], StringComparison.Ordinal))
+                    DiagnosticsSummary = string.Join(Environment.NewLine, stages);
+                RefreshDiagnosticLines();
+                throw;
+            }
+        });
+    }
+
+    private async Task RefreshAgentDiagnosticsAsync(object? _)
+    {
+        if (!TryGetDiagnosticDevice(out var device)) return;
+        await BusyAsync("Получение логов Agent Dev…", async () =>
+        {
+            await using var agent = await AgentClient.ConnectAsync(
+                _adb,
+                device.PreferredSerial);
+            if (!await agent.PairWithApprovalAsync(
+                    TimeSpan.FromSeconds(60),
+                    new Progress<string>(text => StatusText = text)))
+                throw new TimeoutException("Компьютер не подтверждён в Agent Dev.");
+            _lastAgentDiagnostics = await agent.GetDiagnosticsSnapshotAsync();
+            RefreshDiagnosticLines();
+            StatusText = $"Получено событий Agent: {_lastAgentDiagnostics.Events.Count}.";
+        });
+    }
+
+    private async Task ExportSupportBundleAsync(object? _)
+    {
+        if (!TryGetDiagnosticDevice(out var device)) return;
+        var dialog = new SaveFileDialog
+        {
+            Title = "Сохранить VeXArk support bundle",
+            Filter = "ZIP archive (*.zip)|*.zip",
+            FileName = $"VeXArk-Dev-Support-{DateTime.Now:yyyyMMdd-HHmmss}.zip",
+            AddExtension = true,
+            DefaultExt = ".zip"
+        };
+        if (dialog.ShowDialog() != true) return;
+        await BusyAsync("Создание support bundle…", async () =>
+        {
+            if (_lastAgentDiagnostics is null)
+            {
+                try
+                {
+                    await using var agent = await AgentClient.ConnectAsync(
+                        _adb,
+                        device.PreferredSerial);
+                    if (await agent.PairWithApprovalAsync(
+                            TimeSpan.FromSeconds(30),
+                            new Progress<string>(text => StatusText = text)))
+                        _lastAgentDiagnostics = await agent.GetDiagnosticsSnapshotAsync();
+                }
+                catch (Exception error)
+                {
+                    DesktopDiagnostics.Log(
+                        "warn",
+                        "diagnostics",
+                        "agent_snapshot_unavailable",
+                        "Support bundle will not contain Agent snapshot",
+                        error: error);
+                }
+            }
+            await new SupportBundleService(_adb).CreateAsync(
+                dialog.FileName,
+                device.Inventory,
+                _lastAgentDiagnostics);
+            StatusText = $"Support bundle сохранён: {dialog.FileName}";
+        });
+    }
+
+    private bool TryGetDiagnosticDevice(out DeviceViewModel device)
+    {
+        device = SelectedDevice!;
+        if (device is not null) return true;
+        MessageBox.Show("Сначала выберите Android-устройство.");
+        return false;
+    }
+
+    private void OnDiagnosticEvent(DiagnosticEvent diagnosticEvent)
+    {
+        Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            DiagnosticLines.Add("PC  " + diagnosticEvent.DisplayLine);
+            while (DiagnosticLines.Count > 500) DiagnosticLines.RemoveAt(0);
+        });
+    }
+
+    private void RefreshDiagnosticLines()
+    {
+        DiagnosticLines.Clear();
+        foreach (var item in DesktopDiagnostics.Snapshot())
+            DiagnosticLines.Add("PC  " + item.DisplayLine);
+        if (_lastAgentDiagnostics is not null)
+        {
+            foreach (var item in _lastAgentDiagnostics.Events)
+                DiagnosticLines.Add("ANDROID  " + item.DisplayLine);
+        }
+        while (DiagnosticLines.Count > 500) DiagnosticLines.RemoveAt(0);
+    }
+
+    private static string FormatPreflight(AgentPreflightResult result)
+    {
+        var lines = new List<string>
+        {
+            result.Summary,
+            $"Ожидается: {AppRuntimeProfile.AgentPackage}, " +
+            $"channel={AppRuntimeProfile.Channel}, port={AppRuntimeProfile.AgentPort}, " +
+            $"build={AppRuntimeProfile.BuildId}.",
+            result.InstalledAgent is null
+                ? "Установленный Agent: отсутствует."
+                : $"Установлен: {result.InstalledAgent.PackageName} " +
+                  $"{result.InstalledAgent.VersionName} (code {result.InstalledAgent.VersionCode}), " +
+                  $"UID {result.InstalledAgent.UserId}.",
+            result.RunningBuild is null
+                ? "Hello/build: недоступен."
+                : $"Hello: {result.RunningBuild.Channel} " +
+                  $"{result.RunningBuild.VersionName}, build={result.RunningBuild.BuildId}, " +
+                  $"port={result.RunningBuild.AgentPort}."
+        };
+        lines.AddRange(result.Problems.Select(x => "• " + x));
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string FormatRootDiagnostic(
+        AgentBuildInfo build,
+        RootRequestResult root)
+    {
+        var trace = root.Diagnostics;
+        var lines = new List<string>
+        {
+            $"Desktop: {AppRuntimeProfile.VersionName} DEV, build={AppRuntimeProfile.BuildId}.",
+            $"Agent: {build.PackageName}, {build.VersionName}, build={build.BuildId}, " +
+            $"port={build.AgentPort}.",
+            $"Root: granted={root.Granted}, available={root.Available}, " +
+            $"provider={root.Provider}.",
+            $"Причина: {root.Detail}",
+            root.Helper is null
+                ? "Root helper: не проверялся."
+                : $"Root helper: ok={root.Helper.Ok}, " +
+                  $"exit={root.Helper.ExitCode?.ToString() ?? "—"}, " +
+                  $"uid={root.Helper.Uid?.ToString() ?? "—"}, " +
+                  $"stderr={(string.IsNullOrWhiteSpace(root.Helper.Stderr) ? "—" : root.Helper.Stderr)}."
+        };
+        if (trace is not null)
+        {
+            lines.Add(
+                $"Trace {trace.AttemptId}: UID {trace.AppUid}, " +
+                $"grant={trace.AppGrantState}, exit={trace.ShellExitCode?.ToString() ?? "—"}, " +
+                $"success={trace.ShellSuccess}, SELinux={trace.Selinux}, " +
+                $"{trace.DurationMs} ms.");
+            lines.Add($"stdout: {(string.IsNullOrWhiteSpace(trace.Stdout) ? "—" : trace.Stdout)}");
+            lines.Add($"stderr: {(string.IsNullOrWhiteSpace(trace.Stderr) ? "—" : trace.Stderr)}");
+            if (!string.IsNullOrWhiteSpace(trace.ExceptionType))
+                lines.Add($"exception: {trace.ExceptionType}: {trace.ExceptionMessage}");
+            lines.AddRange(trace.Steps.Select(x => "→ " + x));
+        }
+        return string.Join(Environment.NewLine, lines);
+    }
+
     private async Task LoadBackupPackagesAsync(object? _)
     {
         if (SelectedDevice is null)
@@ -531,14 +876,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
             MessageBox.Show("Сначала выберите устройство.");
             return;
         }
-        if (SelectedDevice.Inventory.Root == RootState.Unavailable && (BackupAppData || FullMode))
-        {
-            MessageBox.Show(
-                "Root не найден. APK можно сохранить без root, но приватные данные приложений недоступны.",
-                "Ограниченный режим",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
         if (!File.Exists(Path.Combine(RepositoryPath, "repository.json")))
         {
             MessageBox.Show("Сначала создайте или выберите репозиторий.");
@@ -550,20 +887,41 @@ public sealed class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        await BusyAsync("Подключение к Agent…", async () =>
-        {
+        await BusyAsync(
+            "Подключение к Agent…",
+            async cancellationToken =>
+            {
             var serial = SelectedDevice.PreferredSerial;
-            if (!await _adb.IsAgentInstalledAsync(serial))
+            if (!await _adb.IsAgentInstalledAsync(serial, cancellationToken))
                 throw new InvalidOperationException("Android Agent не установлен.");
+            if (AppRuntimeProfile.IsDev)
+            {
+                _lastAgentPreflight = await new AgentPreflight(_adb).CheckAsync(
+                    serial,
+                    cancellationToken);
+                DiagnosticsSummary = FormatPreflight(_lastAgentPreflight);
+                if (!_lastAgentPreflight.Compatible)
+                    throw new InvalidOperationException(
+                        "Agent Dev не прошёл preflight. Откройте Diagnostics — DEV и " +
+                        "установите встроенную версию.\n" +
+                        string.Join("\n", _lastAgentPreflight.Problems));
+            }
 
-            await using var agent = await AgentClient.ConnectAsync(_adb, serial);
-            using var hello = await agent.HelloAsync();
+            await using var agent = await AgentClient.ConnectAsync(
+                _adb,
+                serial,
+                cancellationToken);
+            using var hello = await agent.HelloAsync(cancellationToken);
             var pairingProgress = new Progress<string>(text => StatusText = text);
-            if (!await agent.PairWithApprovalAsync(TimeSpan.FromSeconds(60), pairingProgress))
+            if (!await agent.PairWithApprovalAsync(
+                    TimeSpan.FromSeconds(60),
+                    pairingProgress,
+                    cancellationToken))
                 throw new TimeoutException("Компьютер не был подтверждён на телефоне.");
 
             StatusText = "Инвентаризация приложений и APK…";
-            var packages = await agent.GetPackagesAsync();
+            var packages = await agent.GetPackagesAsync(
+                cancellationToken: cancellationToken);
             if (BackupPackages.Count > 0)
             {
                 var selectedPackages = BackupPackages
@@ -575,16 +933,37 @@ public sealed class MainViewModel : INotifyPropertyChanged
                     throw new InvalidOperationException("Не выбрано ни одного приложения.");
             }
             var repository = await EncryptedRepository.OpenWithPasswordAsync(
-                RepositoryPath, RepositoryPassword);
+                RepositoryPath,
+                RepositoryPassword,
+                cancellationToken);
+            var backupDevice = SelectedDevice.Inventory;
             var includeRootData = false;
-            if ((BackupAppData || FullMode) &&
-                SelectedDevice.Inventory.Root != RootState.Unavailable)
+            if (BackupAppData || FullMode)
             {
                 StatusText = "Запрос root на телефоне…";
-                includeRootData = await agent.RequestRootAsync();
+                var root = await agent.RequestRootDetailsAsync(cancellationToken);
+                includeRootData = root.RootDataReady;
+                backupDevice = backupDevice with
+                {
+                    Root = root.Granted
+                        ? RootState.Granted
+                        : root.Available
+                            ? RootState.Denied
+                            : RootState.Unavailable
+                };
                 if (!includeRootData)
                     MessageBox.Show(
-                        "Root не предоставлен. Snapshot продолжится только с APK.",
+                        (root.Granted
+                            ? "Root предоставлен, но root-helper не готов. " +
+                              "Snapshot продолжится только с APK."
+                            : "Root не предоставлен. Snapshot продолжится только с APK.") +
+                        (string.IsNullOrWhiteSpace(root.Detail)
+                            ? string.Empty
+                            : $"\n\nДиагностика Agent: {root.Detail}") +
+                        (root.Helper is { Ok: false } helper
+                            ? $"\n\nRoot helper: exit={helper.ExitCode?.ToString() ?? "—"}; " +
+                              $"stderr={helper.Stderr}"
+                            : string.Empty),
                         "Ограниченный режим",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
@@ -598,7 +977,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             var coordinator = new BackupCoordinator(_adb);
             var manifest = await coordinator.BackupPortableAsync(
                 serial,
-                SelectedDevice.Inventory,
+                backupDevice,
                 packages,
                 repository,
                 agent,
@@ -611,12 +990,17 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 includeFullComponents: FullMode && includeRootData,
                 includeCaches: IncludeCaches,
                 fullHash: false,
-                progress: transferProgress);
+                progress: transferProgress,
+                cancellationToken: cancellationToken);
             SnapshotLines.Insert(
                 0,
                 $"{manifest.CreatedAtUtc.ToLocalTime():g} • {manifest.Components.Count} приложений • {manifest.SnapshotId[..8]}");
             StatusText = $"Backup завершён: {manifest.Components.Count} приложений";
-        });
+            },
+            cancellable: true,
+            cancellationStatus:
+            "Backup отменён. Незавершённый snapshot не опубликован; " +
+            "уже записанные chunks будут использованы при следующем запуске.");
     }
 
     private async Task LoadSnapshotsAsync(object? _)
@@ -655,10 +1039,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
         });
     }
 
-    private async Task RefreshIPhoneSourcesCoreAsync()
+    private async Task RefreshIPhoneSourcesCoreAsync(
+        CancellationToken cancellationToken = default)
     {
         var selectedId = SelectedIPhoneSource?.Id;
-        var sources = await _iPhoneMedia.DiscoverAsync();
+        var sources = await _iPhoneMedia.DiscoverAsync(cancellationToken);
         IPhoneSources.Clear();
         foreach (var source in sources) IPhoneSources.Add(source);
         SelectedIPhoneSource =
@@ -675,10 +1060,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private async Task ImportIPhoneMediaAsync(object? _)
     {
-        await BusyAsync("Подключение к iPhone…", async () =>
-        {
+        await BusyAsync(
+            "Подключение к iPhone…",
+            async cancellationToken =>
+            {
             if (SelectedIPhoneSource is null)
-                await RefreshIPhoneSourcesCoreAsync();
+                await RefreshIPhoneSourcesCoreAsync(cancellationToken);
             var source = SelectedIPhoneSource ?? throw new InvalidOperationException(
                 "iPhone не найден. Установите Apple Devices, разблокируйте телефон, " +
                 "нажмите «Доверять» и переподключите USB-кабель.");
@@ -715,7 +1102,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 source,
                 MediaDestination,
                 transferProgress,
-                transferMetrics);
+                transferMetrics,
+                cancellationToken);
             MediaExportReportText =
                 $"iPhone: {report.SourceName}\n" +
                 $"Скопировано: {report.ImportedItems} ({FormatBytes(report.ImportedBytes)})\n" +
@@ -732,7 +1120,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 : $"Копирование с iPhone завершено с ошибками: {report.FailedItems}";
             IPhoneSourceStatus =
                 $"{report.SourceName}: последнее копирование — {report.ImportedItems} новых файлов";
-        });
+            },
+            cancellable: true,
+            cancellationStatus:
+            "Копирование с iPhone отменено. Уже импортированные файлы сохранены.");
     }
 
     private async Task ExportMediaAsync(object? _)
@@ -742,17 +1133,23 @@ public sealed class MainViewModel : INotifyPropertyChanged
             MessageBox.Show("Сначала выберите устройство.");
             return;
         }
-        await BusyAsync("Подключение к Agent…", async () =>
-        {
+        await BusyAsync(
+            "Подключение к Agent…",
+            async cancellationToken =>
+            {
             var serial = SelectedDevice.PreferredSerial;
-            if (!await _adb.IsAgentInstalledAsync(serial))
+            if (!await _adb.IsAgentInstalledAsync(serial, cancellationToken))
                 throw new InvalidOperationException(
                     "Android Agent не установлен. Установите его на странице «Устройства».");
 
-            await using var agent = await AgentClient.ConnectAsync(_adb, serial);
+            await using var agent = await AgentClient.ConnectAsync(
+                _adb,
+                serial,
+                cancellationToken);
             if (!await agent.PairWithApprovalAsync(
                     TimeSpan.FromSeconds(60),
-                    new Progress<string>(text => StatusText = text)))
+                    new Progress<string>(text => StatusText = text),
+                    cancellationToken))
                 throw new UnauthorizedAccessException("Компьютер не подтверждён на телефоне.");
 
             SaveDesktopSettings();
@@ -799,7 +1196,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 MediaDestination,
                 new(selectedMode),
                 transferProgress,
-                transferMetrics);
+                transferMetrics,
+                cancellationToken);
             var transportName = report.Transport == MediaTransportMode.FastLan
                 ? (LocalizationManager.IsRussian ? "Быстрый Wi-Fi" : "Fast Wi-Fi")
                 : "ADB";
@@ -820,7 +1218,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
             StatusText = report.FailedFiles == 0
                 ? $"Фото и видео скопированы: {report.CopiedFiles}, пропущено: {report.SkippedFiles}"
                 : $"Копирование завершено с ошибками: {report.FailedFiles}";
-        });
+            },
+            cancellable: true,
+            cancellationStatus:
+            "Копирование с Android отменено. Готовые файлы сохранены; " +
+            "незавершённые продолжатся при следующем запуске.");
     }
 
     private async Task TestConnectionAsync(object? _)
@@ -989,15 +1391,23 @@ public sealed class MainViewModel : INotifyPropertyChanged
             MessageBox.Show("Выберите устройство и snapshot.");
             return;
         }
-        await BusyAsync("Проверка совместимости Restore…", async () =>
-        {
+        await BusyAsync(
+            "Проверка совместимости Restore…",
+            async cancellationToken =>
+            {
             var serial = SelectedDevice.PreferredSerial;
             var repository = await EncryptedRepository.OpenWithPasswordAsync(
-                RepositoryPath, RepositoryPassword);
-            await using var agent = await AgentClient.ConnectAsync(_adb, serial);
+                RepositoryPath,
+                RepositoryPassword,
+                cancellationToken);
+            await using var agent = await AgentClient.ConnectAsync(
+                _adb,
+                serial,
+                cancellationToken);
             if (!await agent.PairWithApprovalAsync(
                     TimeSpan.FromSeconds(60),
-                    new Progress<string>(x => StatusText = x)))
+                    new Progress<string>(x => StatusText = x),
+                    cancellationToken))
                 throw new UnauthorizedAccessException("Компьютер не подтверждён.");
 
             var snapshot = SelectedSnapshot.Manifest;
@@ -1007,7 +1417,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 .ToList();
             var installed = await agent.GetPackagesAsync(
                 includeSystemApps: true,
-                packageNames);
+                packageNames,
+                cancellationToken);
             var coordinator = new RestoreCoordinator(_adb);
             var report = coordinator.PlanApkRestore(
                 snapshot, SelectedDevice.Inventory, installed);
@@ -1052,7 +1463,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 selected,
                 AllowDowngrade,
                 createSafetySnapshot: true,
-                progress: restoreProgress);
+                progress: restoreProgress,
+                cancellationToken: cancellationToken);
             if (snapshot.Components.Any(x =>
                     x.Kind == "app-data" &&
                     x.Package is not null &&
@@ -1060,14 +1472,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
             {
                 var restoredPackages = await agent.GetPackagesAsync(
                     includeSystemApps: true,
-                    packageNames: selected);
+                    packageNames: selected,
+                    cancellationToken: cancellationToken);
                 await coordinator.RestoreAppDataAsync(
                     snapshot,
                     restoredPackages,
                     repository,
                     agent,
                     selected,
-                    restoreProgress);
+                    restoreProgress,
+                    cancellationToken);
             }
             if (snapshot.Components.Any(x => x.Kind == "shared-storage"))
             {
@@ -1075,13 +1489,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
                     snapshot,
                     repository,
                     agent,
-                    restoreProgress);
+                    restoreProgress,
+                    cancellationToken);
             }
             var policyFailures = await coordinator.RestorePackagePoliciesAsync(
                 snapshot,
                 agent,
                 selected,
-                restoreProgress);
+                restoreProgress,
+                cancellationToken);
             if (policyFailures.Count > 0)
             {
                 RestoreReportText += Environment.NewLine +
@@ -1094,7 +1510,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
                 snapshot,
                 repository,
                 agent,
-                restoreProgress);
+                restoreProgress,
+                cancellationToken);
             if (systemFailures.Count > 0)
             {
                 RestoreReportText += Environment.NewLine +
@@ -1102,8 +1519,12 @@ public sealed class MainViewModel : INotifyPropertyChanged
                     string.Join(", ", systemFailures);
             }
             StatusText = $"Restore завершён: {selected.Count} приложений";
-            PopulateSnapshots(await repository.ListSnapshotsAsync());
-        });
+            PopulateSnapshots(await repository.ListSnapshotsAsync(cancellationToken));
+            },
+            cancellable: true,
+            cancellationStatus:
+            "Restore отменён. Телефон мог быть изменён частично; " +
+            "повторите восстановление для завершения.");
     }
 
     private async Task VerifyRepositoryAsync(object? _)
@@ -1334,6 +1755,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Raise(nameof(PageTitle));
         Raise(nameof(PageSubtitle));
         Raise(nameof(StatusText));
+        Raise(nameof(CancelOperationText));
         Raise(nameof(RestoreReportText));
         Raise(nameof(MediaExportReportText));
         Raise(nameof(MediaLiveStats));
@@ -1346,6 +1768,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Raise(nameof(SelectedMediaTransport));
         Raise(nameof(SelectedLanguage));
         Raise(nameof(SelectedTheme));
+        Raise(nameof(DiagnosticsSummary));
         RaiseConnectionBenchmark();
         PopulateSnapshots(Snapshots.Select(x => x.Manifest).ToArray());
         var selectedDeviceId = SelectedDevice?.Inventory.StableId;
@@ -1381,12 +1804,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
         Raise(nameof(RestoreVisibility));
         Raise(nameof(HistoryVisibility));
         Raise(nameof(SettingsVisibility));
+        Raise(nameof(DiagnosticsVisibility));
+        Raise(nameof(DiagnosticsNavigationVisibility));
         Raise(nameof(IsDevicesPage));
         Raise(nameof(IsBackupPage));
         Raise(nameof(IsMediaPage));
         Raise(nameof(IsRestorePage));
         Raise(nameof(IsHistoryPage));
         Raise(nameof(IsSettingsPage));
+        Raise(nameof(IsDiagnosticsPage));
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             var window = Application.Current.Windows.OfType<MainWindow>().FirstOrDefault();
@@ -1396,22 +1822,105 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     private Visibility Visible(string page) => _page == page ? Visibility.Visible : Visibility.Collapsed;
 
-    private async Task BusyAsync(string status, Func<Task> action)
+    private Task BusyAsync(string status, Func<Task> action) =>
+        BusyAsync(
+            status,
+            _ => action(),
+            cancellable: false,
+            cancellationStatus: "Операция отменена.");
+
+    internal async Task BusyAsync(
+        string status,
+        Func<CancellationToken, Task> action,
+        bool cancellable,
+        string cancellationStatus)
     {
         if (IsBusy) return;
+        var operationId = Guid.NewGuid().ToString("D");
+        var stopwatch = Stopwatch.StartNew();
+        var cancellationToken = cancellable
+            ? _operationCancellation.Begin()
+            : CancellationToken.None;
         IsBusy = true;
+        RaiseCancellationState();
         StatusText = status;
-        try { await action(); }
-        catch (Exception exception) { StatusText = exception.Message; }
+        DesktopDiagnostics.Log(
+            "info",
+            "operation",
+            "started",
+            status,
+            operationId: operationId);
+        try
+        {
+            await action(cancellationToken);
+            DesktopDiagnostics.Log(
+                "info",
+                "operation",
+                "completed",
+                status,
+                operationId: operationId,
+                durationMs: stopwatch.ElapsedMilliseconds,
+                result: "ok");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            StatusText = cancellationStatus;
+            DesktopDiagnostics.Log(
+                "info",
+                "operation",
+                "cancelled",
+                status,
+                operationId: operationId,
+                durationMs: stopwatch.ElapsedMilliseconds,
+                result: "cancelled");
+        }
+        catch (Exception exception)
+        {
+            StatusText = exception.Message;
+            DesktopDiagnostics.Log(
+                "error",
+                "operation",
+                "failed",
+                status,
+                operationId: operationId,
+                durationMs: stopwatch.ElapsedMilliseconds,
+                result: "failed",
+                error: exception);
+        }
         finally
         {
+            if (cancellable)
+                _operationCancellation.Complete();
             IsBusy = false;
+            RaiseCancellationState();
             Application.Current?.Dispatcher.BeginInvoke(() =>
             {
                 var window = Application.Current.Windows.OfType<MainWindow>().FirstOrDefault();
                 if (window is not null) LocalizationManager.Apply(window);
             });
         }
+    }
+
+    private void CancelActiveOperation()
+    {
+        if (!_operationCancellation.Cancel())
+            return;
+        StatusText = "Отмена… Текущий файл корректно закрывается.";
+        DesktopDiagnostics.Log(
+            "info",
+            "operation",
+            "cancel_requested",
+            "User requested operation cancellation",
+            result: "requested");
+        RaiseCancellationState();
+    }
+
+    private void RaiseCancellationState()
+    {
+        Raise(nameof(CanCancelOperation));
+        Raise(nameof(CancelOperationVisibility));
+        Raise(nameof(CancelOperationText));
+        CancelOperationCommand.RaiseCanExecuteChanged();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

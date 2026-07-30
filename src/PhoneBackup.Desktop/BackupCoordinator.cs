@@ -45,6 +45,7 @@ public sealed class BackupCoordinator(AdbService adb)
         var snapshots = await repository.ListSnapshotsAsync(cancellationToken);
         var previous = LatestForDevice(snapshots, device);
         var selected = SelectPackages(packages, includeSystemApps);
+        var failures = new List<BackupFailure>();
         var components = includeApks
             ? await BuildApkComponentsAsync(
                 serial, selected, repository, previous, progress, cancellationToken)
@@ -59,6 +60,7 @@ public sealed class BackupCoordinator(AdbService adb)
                 includeCaches,
                 fullHash,
                 progress,
+                failures,
                 cancellationToken);
             components.AddRange(appData);
         }
@@ -66,7 +68,7 @@ public sealed class BackupCoordinator(AdbService adb)
         if (includeSharedStorage)
         {
             var shared = await BuildSharedStorageComponentsAsync(
-                repository, agent, previous, progress, cancellationToken);
+                repository, agent, previous, progress, failures, cancellationToken);
             components.AddRange(shared.Components);
             excludedMedia = shared.Excluded;
         }
@@ -84,9 +86,12 @@ public sealed class BackupCoordinator(AdbService adb)
         if (includeFullComponents)
         {
             var full = await BuildFullComponentsAsync(
-                repository, agent, previous, progress, cancellationToken);
+                repository, agent, previous, progress, failures, cancellationToken);
             components.AddRange(full);
         }
+        if (failures.Count > 0)
+            components.Add(await BuildFailureReportComponentAsync(
+                repository, failures, cancellationToken));
         return await CommitAsync(
             device, components, repository, purpose, progress, selected.Count,
             cancellationToken, excludedMedia,
@@ -155,9 +160,12 @@ public sealed class BackupCoordinator(AdbService adb)
         bool includeCaches,
         bool fullHash,
         IProgress<TransferProgress>? progress,
+        List<BackupFailure> failures,
         CancellationToken cancellationToken)
     {
         var components = new List<BackupComponentManifest>();
+        await using var scanner = await agent.ConnectSiblingAsync(cancellationToken);
+        await using var reader = await agent.ConnectSiblingAsync(cancellationToken);
         var packageIndex = 0L;
         foreach (var package in selected)
         {
@@ -175,37 +183,99 @@ public sealed class BackupCoordinator(AdbService adb)
                         ?.Files.ToDictionary(x => x.RelativePath, StringComparer.Ordinal)
                         ?? new Dictionary<string, FileEntry>(StringComparer.Ordinal);
                     var files = new List<FileEntry>();
-                    await foreach (var entry in agent.ScanRootAsync(
-                                       root, includeCaches, fullHash, cancellationToken))
+                    try
                     {
-                        if (!RestorePathPolicy.IsSafeRelativePath(entry.RelativePath))
-                            throw new InvalidDataException($"Agent returned unsafe path: {entry.RelativePath}");
-                        if (reusable.TryGetValue(entry.RelativePath, out var old) &&
-                            CanReuse(old, entry))
+                        await foreach (var entry in scanner.ScanRootAsync(
+                                           root, includeCaches, fullHash, cancellationToken))
                         {
-                            files.Add(old);
-                            continue;
+                            if (!RestorePathPolicy.IsSafeRelativePath(entry.RelativePath))
+                                throw new InvalidDataException(
+                                    $"Agent returned unsafe path: {entry.RelativePath}");
+                            if (reusable.TryGetValue(entry.RelativePath, out var old) &&
+                                CanReuse(old, entry))
+                            {
+                                files.Add(old);
+                                continue;
+                            }
+                            if (entry.Kind != "file")
+                            {
+                                files.Add(entry with { Chunks = null });
+                                continue;
+                            }
+                            var chunks = await TryPutFileAsync(
+                                () => reader.OpenRootFileAsync(
+                                    root, entry.RelativePath, cancellationToken),
+                                repository,
+                                entry,
+                                new(
+                                    componentId,
+                                    package.PackageName,
+                                    entry.RelativePath,
+                                    "root_read",
+                                    "",
+                                    ""),
+                                failures,
+                                cancellationToken);
+                            if (chunks is null) continue;
+                            files.Add(entry with { Chunks = chunks });
                         }
-                        if (entry.Kind != "file")
-                        {
-                            files.Add(entry with { Chunks = null });
-                            continue;
-                        }
-                        await using var input = await agent.OpenRootFileAsync(
-                            root, entry.RelativePath, cancellationToken);
-                        var chunks = await repository.PutStreamAsync(input, cancellationToken);
-                        files.Add(entry with { Chunks = chunks });
+                    }
+                    catch (Exception error) when (
+                        IsRecoverableScanFailure(error, cancellationToken))
+                    {
+                        failures.Add(new(
+                            componentId,
+                            package.PackageName,
+                            "",
+                            "root_scan",
+                            error.GetType().FullName ?? error.GetType().Name,
+                            error.Message));
                     }
                     components.Add(Component(package, "app-data", componentId, files));
                 }
             }
             finally
             {
-                await agent.EndPackageSnapshotAsync(package.PackageName, cancellationToken);
+                await EndPackageSnapshotAsync(
+                    agent,
+                    package.PackageName,
+                    cancellationToken);
             }
             packageIndex++;
         }
         return components;
+    }
+
+    private static async Task EndPackageSnapshotAsync(
+        AgentClient agent,
+        string packageName,
+        CancellationToken operationToken)
+    {
+        if (!operationToken.IsCancellationRequested)
+        {
+            await agent.EndPackageSnapshotAsync(packageName, operationToken);
+            return;
+        }
+
+        using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        try
+        {
+            await agent.EndPackageSnapshotAsync(packageName, cleanupTimeout.Token);
+        }
+        catch (Exception error)
+        {
+            DesktopDiagnostics.Log(
+                "warn",
+                "backup",
+                "package_cleanup_failed",
+                "Could not release package snapshot after cancellation",
+                result: "failed",
+                error: error,
+                fields: new Dictionary<string, object?>
+                {
+                    ["packageName"] = packageName
+                });
+        }
     }
 
     private static bool CanReuse(FileEntry old, FileEntry current)
@@ -224,6 +294,7 @@ public sealed class BackupCoordinator(AdbService adb)
         AgentClient agent,
         SnapshotManifest? previous,
         IProgress<TransferProgress>? progress,
+        List<BackupFailure> failures,
         CancellationToken cancellationToken)
     {
         var capability = await agent.GetSharedStorageAsync(cancellationToken);
@@ -232,6 +303,8 @@ public sealed class BackupCoordinator(AdbService adb)
                 "На Agent не выдан «Доступ ко всем файлам». Откройте Agent и нажмите «Доступ к файлам».");
 
         var components = new List<BackupComponentManifest>();
+        await using var scanner = await agent.ConnectSiblingAsync(cancellationToken);
+        await using var reader = await agent.ConnectSiblingAsync(cancellationToken);
         long excludedCount = 0;
         long excludedBytes = 0;
         var samples = new List<string>();
@@ -246,31 +319,59 @@ public sealed class BackupCoordinator(AdbService adb)
                 ?.Files.ToDictionary(x => x.RelativePath, StringComparer.Ordinal)
                 ?? new Dictionary<string, FileEntry>(StringComparer.Ordinal);
             var files = new List<FileEntry>();
-            await foreach (var entry in agent.ScanSharedAsync(root, cancellationToken))
+            try
             {
-                if (!RestorePathPolicy.IsSafeRelativePath(entry.RelativePath))
-                    throw new InvalidDataException($"Agent returned unsafe shared path: {entry.RelativePath}");
-                if (entry.Kind == "excluded")
+                await foreach (var entry in scanner.ScanSharedAsync(root, cancellationToken))
                 {
-                    excludedCount++;
-                    excludedBytes += entry.Size;
-                    if (samples.Count < 20) samples.Add($"{root}/{entry.RelativePath}");
-                    continue;
+                    if (!RestorePathPolicy.IsSafeRelativePath(entry.RelativePath))
+                        throw new InvalidDataException(
+                            $"Agent returned unsafe shared path: {entry.RelativePath}");
+                    if (entry.Kind == "excluded")
+                    {
+                        excludedCount++;
+                        excludedBytes += entry.Size;
+                        if (samples.Count < 20) samples.Add($"{root}/{entry.RelativePath}");
+                        continue;
+                    }
+                    if (reusable.TryGetValue(entry.RelativePath, out var old) &&
+                        CanReuse(old, entry))
+                    {
+                        files.Add(old);
+                        continue;
+                    }
+                    if (entry.Kind != "file")
+                    {
+                        files.Add(entry with { Chunks = null });
+                        continue;
+                    }
+                    var chunks = await TryPutFileAsync(
+                        () => reader.OpenSharedFileAsync(
+                            root, entry.RelativePath, cancellationToken),
+                        repository,
+                        entry,
+                        new(
+                            componentId,
+                            "shared-storage",
+                            entry.RelativePath,
+                            "shared_read",
+                            "",
+                            ""),
+                        failures,
+                        cancellationToken);
+                    if (chunks is null) continue;
+                    files.Add(entry with { Chunks = chunks });
                 }
-                if (reusable.TryGetValue(entry.RelativePath, out var old) && CanReuse(old, entry))
-                {
-                    files.Add(old);
-                    continue;
-                }
-                if (entry.Kind != "file")
-                {
-                    files.Add(entry with { Chunks = null });
-                    continue;
-                }
-                await using var input = await agent.OpenSharedFileAsync(
-                    root, entry.RelativePath, cancellationToken);
-                var chunks = await repository.PutStreamAsync(input, cancellationToken);
-                files.Add(entry with { Chunks = chunks });
+            }
+            catch (Exception error) when (
+                IsRecoverableScanFailure(error, cancellationToken))
+            {
+                failures.Add(new(
+                    componentId,
+                    "shared-storage",
+                    "",
+                    "shared_scan",
+                    error.GetType().FullName ?? error.GetType().Name,
+                    error.Message));
             }
             components.Add(new(
                 componentId,
@@ -418,6 +519,7 @@ public sealed class BackupCoordinator(AdbService adb)
         AgentClient agent,
         SnapshotManifest? previous,
         IProgress<TransferProgress>? progress,
+        List<BackupFailure> failures,
         CancellationToken cancellationToken)
     {
         var roots = new[]
@@ -426,6 +528,8 @@ public sealed class BackupCoordinator(AdbService adb)
             (Id: "full.root_modules", Root: "/data/adb/modules/")
         };
         var components = new List<BackupComponentManifest>();
+        await using var scanner = await agent.ConnectSiblingAsync(cancellationToken);
+        await using var reader = await agent.ConnectSiblingAsync(cancellationToken);
         for (var index = 0; index < roots.Length; index++)
         {
             var source = roots[index];
@@ -435,28 +539,56 @@ public sealed class BackupCoordinator(AdbService adb)
                 ?.Files.ToDictionary(x => x.RelativePath, StringComparer.Ordinal)
                 ?? new Dictionary<string, FileEntry>(StringComparer.Ordinal);
             var files = new List<FileEntry>();
-            await foreach (var entry in agent.ScanRootAsync(
-                               source.Root,
-                               includeCaches: false,
-                               fullHash: true,
-                               cancellationToken))
+            try
             {
-                if (!RestorePathPolicy.IsSafeRelativePath(entry.RelativePath))
-                    throw new InvalidDataException($"Agent returned unsafe Full path: {entry.RelativePath}");
-                if (reusable.TryGetValue(entry.RelativePath, out var old) && CanReuse(old, entry))
+                await foreach (var entry in scanner.ScanRootAsync(
+                                   source.Root,
+                                   includeCaches: false,
+                                   fullHash: true,
+                                   cancellationToken))
                 {
-                    files.Add(old);
-                    continue;
+                    if (!RestorePathPolicy.IsSafeRelativePath(entry.RelativePath))
+                        throw new InvalidDataException(
+                            $"Agent returned unsafe Full path: {entry.RelativePath}");
+                    if (reusable.TryGetValue(entry.RelativePath, out var old) &&
+                        CanReuse(old, entry))
+                    {
+                        files.Add(old);
+                        continue;
+                    }
+                    if (entry.Kind != "file")
+                    {
+                        files.Add(entry with { Chunks = null });
+                        continue;
+                    }
+                    var chunks = await TryPutFileAsync(
+                        () => reader.OpenRootFileAsync(
+                            source.Root, entry.RelativePath, cancellationToken),
+                        repository,
+                        entry,
+                        new(
+                            source.Id,
+                            "full",
+                            entry.RelativePath,
+                            "root_read",
+                            "",
+                            ""),
+                        failures,
+                        cancellationToken);
+                    if (chunks is null) continue;
+                    files.Add(entry with { Chunks = chunks });
                 }
-                if (entry.Kind != "file")
-                {
-                    files.Add(entry with { Chunks = null });
-                    continue;
-                }
-                await using var input = await agent.OpenRootFileAsync(
-                    source.Root, entry.RelativePath, cancellationToken);
-                var chunks = await repository.PutStreamAsync(input, cancellationToken);
-                files.Add(entry with { Chunks = chunks });
+            }
+            catch (Exception error) when (
+                IsRecoverableScanFailure(error, cancellationToken))
+            {
+                failures.Add(new(
+                    source.Id,
+                    "full",
+                    "",
+                    "root_scan",
+                    error.GetType().FullName ?? error.GetType().Name,
+                    error.Message));
             }
             components.Add(new(
                 source.Id,
@@ -466,6 +598,87 @@ public sealed class BackupCoordinator(AdbService adb)
                 files.SelectMany(x => x.Chunks ?? []).Sum(x => (long)x.StoredLength)));
         }
         return components;
+    }
+
+    private static async Task<IReadOnlyList<ChunkReference>?> TryPutFileAsync(
+        Func<Task<Stream>> open,
+        EncryptedRepository repository,
+        FileEntry entry,
+        BackupFailure failure,
+        List<BackupFailure> failures,
+        CancellationToken cancellationToken)
+    {
+        Exception? lastError = null;
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            try
+            {
+                await using var input = await open();
+                var chunks = await repository.PutStreamAsync(input, cancellationToken);
+                var copiedBytes = chunks.Sum(x => (long)x.PlainLength);
+                if (copiedBytes != entry.Size)
+                    throw new IOException(
+                        $"File changed during backup: scanned={entry.Size}, read={copiedBytes}.");
+                return chunks;
+            }
+            catch (IOException error) when (!cancellationToken.IsCancellationRequested)
+            {
+                lastError = error;
+                if (attempt == 1)
+                    await Task.Delay(100, cancellationToken);
+            }
+        }
+
+        failures.Add(failure with
+        {
+            ErrorType = lastError?.GetType().FullName ?? "System.IO.IOException",
+            Message = lastError?.Message ?? "File could not be read after two attempts."
+        });
+        return null;
+    }
+
+    private static bool IsRecoverableScanFailure(
+        Exception error,
+        CancellationToken cancellationToken) =>
+        !cancellationToken.IsCancellationRequested &&
+        (error is InvalidOperationException ||
+         error is IOException);
+
+    private static async Task<BackupComponentManifest> BuildFailureReportComponentAsync(
+        EncryptedRepository repository,
+        IReadOnlyList<BackupFailure> failures,
+        CancellationToken cancellationToken)
+    {
+        var report = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(
+            new
+            {
+                generatedAtUtc = DateTimeOffset.UtcNow,
+                count = failures.Count,
+                failures
+            },
+            new System.Text.Json.JsonSerializerOptions(
+                System.Text.Json.JsonSerializerDefaults.Web));
+        await using var input = new MemoryStream(report, writable: false);
+        var chunks = await repository.PutStreamAsync(input, cancellationToken);
+        return new(
+            "backup.failures",
+            "backup-report",
+            [
+                new(
+                    "backup-failures.json",
+                    "file",
+                    report.LongLength,
+                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1_000_000,
+                    0,
+                    0,
+                    0,
+                    null,
+                    null,
+                    null,
+                    chunks)
+            ],
+            report.LongLength,
+            chunks.Sum(x => (long)x.StoredLength));
     }
 
     private static BackupComponentManifest Component(
@@ -550,4 +763,12 @@ public sealed class BackupCoordinator(AdbService adb)
     private sealed record SharedBuildResult(
         IReadOnlyList<BackupComponentManifest> Components,
         ExcludedMediaReport Excluded);
+
+    private sealed record BackupFailure(
+        string ComponentId,
+        string Source,
+        string RelativePath,
+        string Stage,
+        string ErrorType,
+        string Message);
 }

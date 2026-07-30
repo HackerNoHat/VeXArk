@@ -186,6 +186,39 @@ public sealed class RepositoryTests
     }
 
     [Fact]
+    public async Task CancelledSnapshotCommitDoesNotPublishManifest()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"phonebackup-test-{Guid.NewGuid():N}");
+        try
+        {
+            await EncryptedRepository.CreateAsync(root, "correct horse battery staple");
+            var repository = await EncryptedRepository.OpenWithPasswordAsync(
+                root,
+                "correct horse battery staple");
+            var manifest = new SnapshotManifest(
+                1,
+                Guid.NewGuid().ToString("N"),
+                DateTimeOffset.UtcNow,
+                BackupMode.Portable,
+                new(
+                    "device", "Model", "device", "16", 36, "fingerprint", "arm64-v8a",
+                    "Enforcing", RootState.Granted, []),
+                [],
+                new(0, 0, []));
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => repository.CommitSnapshotAsync(manifest, cancellation.Token));
+            Assert.Empty(await repository.ListSnapshotsAsync());
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task EncryptedSnapshotBundleCanBeExportedAndImported()
     {
         var root = Path.Combine(Path.GetTempPath(), $"phonebackup-test-{Guid.NewGuid():N}");

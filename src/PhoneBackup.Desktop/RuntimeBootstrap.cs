@@ -1,13 +1,15 @@
 using System.Reflection;
+using System.Security.Cryptography;
 
 namespace PhoneBackup.Desktop;
 
 public static class RuntimeBootstrap
 {
-    private const string RuntimeVersion = "0.8.0-beta.1";
+    private static readonly string RuntimeVersion =
+        $"{AppRuntimeProfile.VersionName}-{AppRuntimeProfile.BuildId}";
+
     private static readonly string Root = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "PhoneBackup",
+        AppRuntimeProfile.LocalRoot,
         "runtime",
         RuntimeVersion);
 
@@ -22,6 +24,12 @@ public static class RuntimeBootstrap
         Extract("PhoneBackup.Runtime.phonebackup-agent.apk", AgentApkPath);
     }
 
+    public static string ComputeAgentApkSha256() =>
+        File.Exists(AgentApkPath)
+            ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(AgentApkPath)))
+                .ToLowerInvariant()
+            : string.Empty;
+
     private static void Extract(string resourceName, string destination)
     {
         var assembly = Assembly.GetExecutingAssembly();
@@ -29,9 +37,15 @@ public static class RuntimeBootstrap
         if (resource is null) return;
 
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-        var expectedLength = resource.Length;
-        if (File.Exists(destination) && new FileInfo(destination).Length == expectedLength)
-            return;
+        var expectedHash = Convert.ToHexString(SHA256.HashData(resource)).ToLowerInvariant();
+        resource.Position = 0;
+        if (File.Exists(destination))
+        {
+            var actualHash = Convert.ToHexString(
+                SHA256.HashData(File.ReadAllBytes(destination))).ToLowerInvariant();
+            if (string.Equals(expectedHash, actualHash, StringComparison.Ordinal))
+                return;
+        }
 
         var temporary = destination + $".{Guid.NewGuid():N}.tmp";
         try
@@ -43,6 +57,17 @@ public static class RuntimeBootstrap
                 output.Flush(flushToDisk: true);
             }
             File.Move(temporary, destination, overwrite: true);
+            DesktopDiagnostics.Log(
+                "info",
+                "runtime",
+                "resource_extracted",
+                "Embedded runtime resource extracted",
+                fields: new Dictionary<string, object?>
+                {
+                    ["resource"] = resourceName,
+                    ["destination"] = destination,
+                    ["sha256"] = expectedHash
+                });
         }
         finally
         {

@@ -8,8 +8,46 @@ and the project uses semantic versioning.
 
 ## [Unreleased]
 
-- Stable signing and broader rooted-device validation.
 - Additional restore fixtures across Android 10–16 and multiple ROM families.
+
+## [0.8.0-beta.2] — 2026-07-30
+
+### Added
+
+- KernelSU grants are now requested by Android Agent instead of being gated by
+  the unrelated ADB shell UID, and changed grants are detected without restarting Agent.
+- Added a side-by-side VeXArk Dev / Agent Dev channel with a separate Android
+  package and port, strict Agent build preflight, structured desktop/Android
+  diagnostics, an end-to-end root test, and offline support-bundle export.
+- Added a prominent cancel-copying action for encrypted backups, Android/iPhone
+  media exports and restore operations.
+- Interrupted Android media files retain authenticated resume metadata; cancelled
+  backups do not publish an incomplete snapshot.
+- Root backup failures are collected in an encrypted `backup-failures.json`
+  component so a live file can disappear without losing the rest of the snapshot.
+
+### Fixed
+
+- Root streaming no longer performs socket writes from Android's main thread or
+  lets late libsu callbacks crash Agent with `NetworkOnMainThreadException`.
+- Root scan and read use a FIFO-backed helper stream, and broken pipes no longer
+  abort the native helper.
+- Desktop and Agent now use identical platform-independent signed-JSON
+  canonicalization and strict response-envelope validation.
+- Backup scan, file reads and control commands use separate Agent connections,
+  preventing stream frames from being consumed by the wrong request.
+- Android 16 package snapshot cleanup uses `cmd package unstop`; cancellation
+  cleanup independently releases force-stopped apps and abandoned install sessions.
+
+### Verified
+
+- KernelSU root and native helper both returned UID 0 on Xiaomi `24129PN74G`.
+- A full encrypted snapshot with 301 components verified all 23,577 referenced
+  objects, while a separate MediaStore export copied 574 files / 19.31 GiB.
+- The backup and media sets were duplicated to a second physical disk and the
+  encrypted mirror passed full verification.
+- All 39 Core tests, 21 Desktop tests, Android unit tests and the local Dev build.
+- Stable Release builds now fail fast when the APK signing certificate does not match the production certificate.
 
 ## [0.8.0-beta.1] — 2026-07-30
 
@@ -186,7 +224,8 @@ and the project uses semantic versioning.
 - Android 10–16 no-root inventory and capability probing.
 - Versioned length-prefixed loopback protocol over `adb forward`.
 
-[Unreleased]: https://github.com/VeXEveryOne/VeXArk/compare/v0.8.0-beta.1...HEAD
+[Unreleased]: https://github.com/VeXEveryOne/VeXArk/compare/v0.8.0-beta.2...HEAD
+[0.8.0-beta.2]: https://github.com/VeXEveryOne/VeXArk/compare/v0.8.0-beta.1...v0.8.0-beta.2
 [0.8.0-beta.1]: https://github.com/VeXEveryOne/VeXArk/compare/v0.7.1...v0.8.0-beta.1
 [0.7.1]: https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.1
 [0.7.0]: https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.0

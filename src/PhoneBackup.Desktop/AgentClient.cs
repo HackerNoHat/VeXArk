@@ -3,13 +3,66 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Runtime.CompilerServices;
 using NSec.Cryptography;
 using PhoneBackup.Core;
 
 namespace PhoneBackup.Desktop;
+
+public sealed record RootRequestResult(
+    bool Available,
+    bool Granted,
+    string Provider,
+    string Detail,
+    AgentRootDiagnostics? Diagnostics,
+    AgentRootHelperDiagnostics? Helper)
+{
+    public bool RootDataReady => Granted && Helper is { Ok: true, Uid: 0 };
+}
+
+public sealed record AgentRootHelperDiagnostics(
+    bool Ok,
+    int? ExitCode,
+    int? Uid,
+    string Stdout,
+    string Stderr,
+    string? ExceptionType);
+
+public sealed record AgentRootDiagnostics(
+    string AttemptId,
+    DateTimeOffset TimestampUtc,
+    bool RequestGrant,
+    int AppUid,
+    string AppGrantState,
+    bool CachedShellPresent,
+    bool CachedShellAlive,
+    bool CachedShellRoot,
+    bool CachedShellClosed,
+    int? ShellExitCode,
+    bool ShellSuccess,
+    string Stdout,
+    string Stderr,
+    string Selinux,
+    string? ExceptionType,
+    string? ExceptionMessage,
+    long DurationMs,
+    IReadOnlyList<string> Steps);
+
+public sealed record AgentBuildInfo(
+    string Channel,
+    string PackageName,
+    string VersionName,
+    int VersionCode,
+    string BuildId,
+    int AgentPort,
+    bool DiagnosticsEnabled,
+    int ProtocolVersion);
+
+public sealed record AgentDiagnosticsSnapshot(
+    AgentBuildInfo Build,
+    IReadOnlyList<DiagnosticEvent> Events,
+    string RawJson);
 
 public sealed class AgentClient : IAsyncDisposable
 {
@@ -45,6 +98,17 @@ public sealed class AgentClient : IAsyncDisposable
         string serial,
         CancellationToken cancellationToken = default)
     {
+        DesktopDiagnostics.Log(
+            "info",
+            "protocol",
+            "connect_started",
+            "Connecting to Android Agent",
+            fields: new Dictionary<string, object?>
+            {
+                ["agentPackage"] = AppRuntimeProfile.AgentPackage,
+                ["agentPort"] = AppRuntimeProfile.AgentPort,
+                ["serial"] = serial
+            });
         await adb.LaunchAgentAsync(serial, cancellationToken);
         var port = await adb.ForwardAgentPortAsync(serial, cancellationToken);
         try
@@ -86,6 +150,17 @@ public sealed class AgentClient : IAsyncDisposable
             try
             {
                 await client.ConnectAsync(IPAddress.Loopback, port, cancellationToken);
+                DesktopDiagnostics.Log(
+                    "info",
+                    "protocol",
+                    "connect_completed",
+                    "Connected to Android Agent",
+                    result: "ok",
+                    fields: new Dictionary<string, object?>
+                    {
+                        ["forwardPort"] = port,
+                        ["attempt"] = attempt + 1
+                    });
                 return new(
                     client,
                     DesktopIdentity.LoadOrCreate(),
@@ -97,6 +172,17 @@ public sealed class AgentClient : IAsyncDisposable
             catch (Exception error) when (error is SocketException or IOException)
             {
                 last = error;
+                DesktopDiagnostics.Log(
+                    "warn",
+                    "protocol",
+                    "connect_retry",
+                    "Agent connection attempt failed",
+                    result: (attempt + 1).ToString(),
+                    error: error,
+                    fields: new Dictionary<string, object?>
+                    {
+                        ["forwardPort"] = port
+                    });
                 await Task.Delay(250, cancellationToken);
                 client.Dispose();
                 client = new TcpClient { NoDelay = true };
@@ -108,6 +194,18 @@ public sealed class AgentClient : IAsyncDisposable
 
     public Task<JsonDocument> HelloAsync(CancellationToken cancellationToken = default) =>
         SendCommandAsync("hello", cancellationToken: cancellationToken);
+
+    public async Task<AgentBuildInfo> GetBuildInfoAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var hello = await HelloAsync(cancellationToken);
+        EnsureOk(hello.RootElement, "hello");
+        if (!hello.RootElement.TryGetProperty("build", out var build) ||
+            build.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException(
+                "Agent не вернул build metadata. Установите актуальный VeXArk Agent Dev.");
+        return ParseBuildInfo(build, hello.RootElement.GetProperty("protocolVersion").GetInt32());
+    }
 
     public async Task<IReadOnlySet<string>> GetCapabilitiesAsync(
         CancellationToken cancellationToken = default)
@@ -233,10 +331,116 @@ public sealed class AgentClient : IAsyncDisposable
         return false;
     }
 
-    public async Task<bool> RequestRootAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> RequestRootAsync(CancellationToken cancellationToken = default) =>
+        (await RequestRootDetailsAsync(cancellationToken)).Granted;
+
+    public async Task<RootRequestResult> RequestRootDetailsAsync(
+        CancellationToken cancellationToken = default)
     {
         using var response = await SendCommandAsync("root_request", cancellationToken: cancellationToken);
-        return response.RootElement.TryGetProperty("granted", out var granted) && granted.GetBoolean();
+        var root = response.RootElement;
+        EnsureOk(root, "root_request");
+        var available = ReadRequiredBoolean(root, "available", "root_request");
+        var granted = ReadRequiredBoolean(root, "granted", "root_request");
+        var provider = ReadRequiredString(root, "provider", "root_request");
+        var detail = ReadRequiredString(root, "detail", "root_request");
+        var diagnostics = root.TryGetProperty("diagnostics", out var trace) &&
+                          trace.ValueKind == JsonValueKind.Object
+            ? ParseRootDiagnostics(trace)
+            : null;
+        var helper = root.TryGetProperty("helper", out var helperElement) &&
+                     helperElement.ValueKind == JsonValueKind.Object
+            ? ParseRootHelperDiagnostics(helperElement)
+            : null;
+        if (!granted && string.IsNullOrWhiteSpace(detail))
+            throw new InvalidDataException(
+                "Agent отклонил root без объяснения. Откройте Diagnostics и обновите Agent Dev.");
+        var result = new RootRequestResult(
+            available,
+            granted,
+            provider,
+            detail,
+            diagnostics,
+            helper);
+        DesktopDiagnostics.Log(
+            granted ? "info" : "warn",
+            "root",
+            "agent_result",
+            detail,
+            operationId: diagnostics?.AttemptId,
+            durationMs: diagnostics?.DurationMs,
+            result: granted ? "granted" : available ? "denied" : "unavailable",
+            fields: new Dictionary<string, object?>
+            {
+                ["available"] = available,
+                ["granted"] = granted,
+                ["provider"] = provider,
+                ["appUid"] = diagnostics?.AppUid,
+                ["appGrantState"] = diagnostics?.AppGrantState,
+                ["cachedShellPresent"] = diagnostics?.CachedShellPresent,
+                ["cachedShellRoot"] = diagnostics?.CachedShellRoot,
+                ["cachedShellClosed"] = diagnostics?.CachedShellClosed,
+                ["shellExitCode"] = diagnostics?.ShellExitCode,
+                ["shellSuccess"] = diagnostics?.ShellSuccess,
+                ["stdout"] = diagnostics?.Stdout,
+                ["stderr"] = diagnostics?.Stderr,
+                ["selinux"] = diagnostics?.Selinux,
+                ["exceptionType"] = diagnostics?.ExceptionType,
+                ["exceptionMessage"] = diagnostics?.ExceptionMessage,
+                ["helperOk"] = helper?.Ok,
+                ["helperExitCode"] = helper?.ExitCode,
+                ["helperStdout"] = helper?.Stdout,
+                ["helperStderr"] = helper?.Stderr,
+                ["helperExceptionType"] = helper?.ExceptionType
+            });
+        return result;
+    }
+
+    public async Task<AgentDiagnosticsSnapshot> GetDiagnosticsSnapshotAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await SendCommandAsync(
+            "diagnostics_snapshot",
+            cancellationToken: cancellationToken);
+        EnsureOk(response.RootElement, "diagnostics_snapshot");
+        if (!response.RootElement.TryGetProperty("snapshot", out var snapshot) ||
+            snapshot.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException("Agent не вернул diagnostics snapshot.");
+        var build = ParseBuildInfo(snapshot, ProtocolConstants.ProtocolVersion);
+        var events = new List<DiagnosticEvent>();
+        if (snapshot.TryGetProperty("events", out var eventArray) &&
+            eventArray.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in eventArray.EnumerateArray())
+            {
+                try
+                {
+                    var parsed = JsonSerializer.Deserialize<DiagnosticEvent>(
+                        item.GetRawText(),
+                        AgentJsonOptions);
+                    if (parsed is not null) events.Add(parsed);
+                }
+                catch (JsonException error)
+                {
+                    DesktopDiagnostics.Log(
+                        "warn",
+                        "protocol",
+                        "diagnostic_event_invalid",
+                        "Agent diagnostic event could not be parsed",
+                        error: error);
+                }
+            }
+        }
+        return new(build, events, snapshot.GetRawText());
+    }
+
+    public async Task ClearAgentDiagnosticsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await SendCommandAsync(
+            "diagnostics_clear",
+            cancellationToken: cancellationToken);
+        EnsureOk(response.RootElement, "diagnostics_clear");
     }
 
     public async Task BeginPackageSnapshotAsync(
@@ -306,14 +510,64 @@ public sealed class AgentClient : IAsyncDisposable
         object? payload = null,
         CancellationToken cancellationToken = default)
     {
-        var request = CreateSignedRequest(command, payload);
-        await WriteFrameAsync(TransferFrameType.Command, request, cancellationToken);
-        var (type, response) = await ReadFrameAsync(cancellationToken);
-        if (type is TransferFrameType.Error)
-            throw new InvalidOperationException(Encoding.UTF8.GetString(response));
-        if (type is not TransferFrameType.Response)
-            throw new InvalidDataException($"Unexpected Agent frame: {type}");
-        return JsonDocument.Parse(response);
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var request = CreateSignedRequestEnvelope(command, payload);
+        DesktopDiagnostics.Log(
+            "info",
+            "protocol",
+            "command_started",
+            "Agent command started",
+            requestId: request.RequestId,
+            fields: new Dictionary<string, object?>
+            {
+                ["command"] = command,
+                ["payloadBytes"] = request.Payload.Length
+            });
+        try
+        {
+            await WriteFrameAsync(TransferFrameType.Command, request.Payload, cancellationToken);
+            var (type, response) = await ReadFrameAsync(cancellationToken);
+            if (type is TransferFrameType.Error)
+                throw new InvalidOperationException(Encoding.UTF8.GetString(response));
+            if (type is not TransferFrameType.Response)
+                throw new InvalidDataException($"Unexpected Agent frame: {type}");
+            var document = JsonDocument.Parse(response);
+            ValidateResponseEnvelope(document.RootElement, request.RequestId, command);
+            var result = document.RootElement.TryGetProperty("ok", out var ok) &&
+                         ok.ValueKind is JsonValueKind.True or JsonValueKind.False
+                ? ok.GetBoolean() ? "ok" : ReadOptionalString(document.RootElement, "error") ?? "failed"
+                : "no-ok-field";
+            DesktopDiagnostics.Log(
+                result == "ok" ? "info" : "warn",
+                "protocol",
+                "command_completed",
+                "Agent command completed",
+                requestId: request.RequestId,
+                durationMs: stopwatch.ElapsedMilliseconds,
+                result: result,
+                fields: new Dictionary<string, object?>
+                {
+                    ["command"] = command,
+                    ["responseBytes"] = response.Length
+                });
+            return document;
+        }
+        catch (Exception error)
+        {
+            DesktopDiagnostics.Log(
+                "error",
+                "protocol",
+                "command_failed",
+                "Agent command failed",
+                requestId: request.RequestId,
+                durationMs: stopwatch.ElapsedMilliseconds,
+                error: error,
+                fields: new Dictionary<string, object?>
+                {
+                    ["command"] = command
+                });
+            throw;
+        }
     }
 
     public async IAsyncEnumerable<FileEntry> ScanRootAsync(
@@ -647,7 +901,10 @@ public sealed class AgentClient : IAsyncDisposable
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(producerError).Throw();
     }
 
-    private byte[] CreateSignedRequest(string command, object? payload)
+    private byte[] CreateSignedRequest(string command, object? payload) =>
+        CreateSignedRequestEnvelope(command, payload).Payload;
+
+    private SignedRequest CreateSignedRequestEnvelope(string command, object? payload)
     {
         var requestId = Guid.NewGuid().ToString("D");
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
@@ -657,70 +914,270 @@ public sealed class AgentClient : IAsyncDisposable
         var canonical = Encoding.UTF8.GetBytes(
             $"{ProtocolConstants.ProtocolVersion}\n{requestId}\n{command}\n{timestamp}\n{nonce}\n{payloadHash}");
         var signature = Convert.ToBase64String(_identity.Sign(canonical));
-        return JsonSerializer.SerializeToUtf8Bytes(new
-        {
-            protocolVersion = ProtocolConstants.ProtocolVersion,
+        return new(
             requestId,
-            command,
-            desktopKey = _desktopKey,
-            timestamp,
-            nonce,
-            payloadHash,
-            signature,
-            payload
-        });
+            JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                protocolVersion = ProtocolConstants.ProtocolVersion,
+                requestId,
+                command,
+                desktopKey = _desktopKey,
+                timestamp,
+                nonce,
+                payloadHash,
+                signature,
+                payload
+            }));
     }
 
-    private static byte[] CanonicalPayload(object? payload)
+    internal static void ValidateResponseEnvelope(
+        JsonElement root,
+        string expectedRequestId,
+        string command)
+    {
+        if (!root.TryGetProperty("protocolVersion", out var protocol) ||
+            protocol.ValueKind != JsonValueKind.Number ||
+            !protocol.TryGetInt32(out var protocolVersion))
+            throw new InvalidDataException(
+                $"Agent response for {command} has no protocolVersion.");
+        if (protocolVersion != ProtocolConstants.ProtocolVersion)
+            throw new InvalidDataException(
+                $"Agent protocol mismatch for {command}: " +
+                $"expected {ProtocolConstants.ProtocolVersion}, received {protocolVersion}.");
+        var requestId = ReadRequiredString(root, "requestId", command);
+        if (!string.Equals(requestId, expectedRequestId, StringComparison.Ordinal))
+            throw new InvalidDataException(
+                $"Agent requestId mismatch for {command}: " +
+                $"expected {expectedRequestId}, received {requestId}.");
+    }
+
+    internal static void EnsureOk(JsonElement root, string command)
+    {
+        if (!root.TryGetProperty("ok", out var ok) ||
+            ok.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            throw new InvalidDataException($"Agent response for {command} has no boolean ok field.");
+        if (ok.GetBoolean()) return;
+        var code = ReadOptionalString(root, "error") ?? "unknown_error";
+        var message = ReadOptionalString(root, "message");
+        throw new InvalidOperationException(
+            string.IsNullOrWhiteSpace(message)
+                ? $"Agent rejected {command}: {code}."
+                : $"Agent rejected {command}: {code} — {message}");
+    }
+
+    internal static AgentBuildInfo ParseBuildInfo(JsonElement build, int protocolVersion)
+    {
+        return new(
+            ReadRequiredString(build, "channel", "build"),
+            ReadRequiredString(build, "packageName", "build"),
+            ReadRequiredString(build, "versionName", "build"),
+            ReadRequiredInt32(build, "versionCode", "build"),
+            ReadRequiredString(build, "buildId", "build"),
+            ReadRequiredInt32(build, "agentPort", "build"),
+            ReadRequiredBoolean(build, "diagnosticsEnabled", "build"),
+            protocolVersion);
+    }
+
+    internal static AgentRootDiagnostics ParseRootDiagnostics(JsonElement trace)
+    {
+        var timestampText = ReadRequiredString(trace, "timestampUtc", "root diagnostics");
+        if (!DateTimeOffset.TryParse(
+                timestampText,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal,
+                out var timestamp))
+            throw new InvalidDataException("Agent root diagnostics contains invalid timestampUtc.");
+        var steps = trace.TryGetProperty("steps", out var stepArray) &&
+                    stepArray.ValueKind == JsonValueKind.Array
+            ? stepArray.EnumerateArray()
+                .Where(x => x.ValueKind == JsonValueKind.String)
+                .Select(x => x.GetString()!)
+                .ToList()
+            : [];
+        return new(
+            ReadRequiredString(trace, "attemptId", "root diagnostics"),
+            timestamp,
+            ReadRequiredBoolean(trace, "requestGrant", "root diagnostics"),
+            ReadRequiredInt32(trace, "appUid", "root diagnostics"),
+            ReadRequiredString(trace, "appGrantState", "root diagnostics"),
+            ReadRequiredBoolean(trace, "cachedShellPresent", "root diagnostics"),
+            ReadRequiredBoolean(trace, "cachedShellAlive", "root diagnostics"),
+            ReadRequiredBoolean(trace, "cachedShellRoot", "root diagnostics"),
+            ReadRequiredBoolean(trace, "cachedShellClosed", "root diagnostics"),
+            ReadOptionalInt32(trace, "shellExitCode"),
+            ReadRequiredBoolean(trace, "shellSuccess", "root diagnostics"),
+            ReadRequiredString(trace, "stdout", "root diagnostics", allowEmpty: true),
+            ReadRequiredString(trace, "stderr", "root diagnostics", allowEmpty: true),
+            ReadRequiredString(trace, "selinux", "root diagnostics", allowEmpty: true),
+            ReadOptionalString(trace, "exceptionType"),
+            ReadOptionalString(trace, "exceptionMessage"),
+            ReadRequiredInt64(trace, "durationMs", "root diagnostics"),
+            steps);
+    }
+
+    internal static AgentRootHelperDiagnostics ParseRootHelperDiagnostics(JsonElement helper)
+    {
+        return new(
+            ReadRequiredBoolean(helper, "ok", "root helper diagnostics"),
+            ReadOptionalInt32(helper, "exitCode"),
+            ReadOptionalInt32(helper, "uid"),
+            ReadRequiredString(helper, "stdout", "root helper diagnostics", allowEmpty: true),
+            ReadRequiredString(helper, "stderr", "root helper diagnostics", allowEmpty: true),
+            ReadOptionalString(helper, "exceptionType"));
+    }
+
+    internal static bool ReadRequiredBoolean(
+        JsonElement root,
+        string name,
+        string context)
+    {
+        if (!root.TryGetProperty(name, out var value) ||
+            value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            throw new InvalidDataException(
+                $"Agent response for {context} has no boolean {name} field.");
+        return value.GetBoolean();
+    }
+
+    internal static string ReadRequiredString(
+        JsonElement root,
+        string name,
+        string context,
+        bool allowEmpty = false)
+    {
+        if (!root.TryGetProperty(name, out var value) ||
+            value.ValueKind != JsonValueKind.String)
+            throw new InvalidDataException(
+                $"Agent response for {context} has no string {name} field.");
+        var result = value.GetString() ?? string.Empty;
+        if (!allowEmpty && string.IsNullOrWhiteSpace(result))
+            throw new InvalidDataException(
+                $"Agent response for {context} contains an empty {name} field.");
+        return result;
+    }
+
+    private static int ReadRequiredInt32(JsonElement root, string name, string context)
+    {
+        if (!root.TryGetProperty(name, out var value) ||
+            value.ValueKind != JsonValueKind.Number ||
+            !value.TryGetInt32(out var result))
+            throw new InvalidDataException(
+                $"Agent response for {context} has no integer {name} field.");
+        return result;
+    }
+
+    private static long ReadRequiredInt64(JsonElement root, string name, string context)
+    {
+        if (!root.TryGetProperty(name, out var value) ||
+            value.ValueKind != JsonValueKind.Number ||
+            !value.TryGetInt64(out var result))
+            throw new InvalidDataException(
+                $"Agent response for {context} has no integer {name} field.");
+        return result;
+    }
+
+    private static int? ReadOptionalInt32(JsonElement root, string name)
+    {
+        if (!root.TryGetProperty(name, out var value) ||
+            value.ValueKind == JsonValueKind.Null)
+            return null;
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var result))
+            throw new InvalidDataException($"Agent response contains invalid {name} field.");
+        return result;
+    }
+
+    private static string? ReadOptionalString(JsonElement root, string name)
+    {
+        if (!root.TryGetProperty(name, out var value) ||
+            value.ValueKind == JsonValueKind.Null)
+            return null;
+        if (value.ValueKind != JsonValueKind.String)
+            throw new InvalidDataException($"Agent response contains invalid {name} field.");
+        return value.GetString();
+    }
+
+    internal static byte[] CanonicalPayload(object? payload)
     {
         var element = JsonSerializer.SerializeToElement(payload);
-        using var buffer = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(buffer, new()
-        {
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        }))
-            WriteCanonical(writer, element);
-        // Android's org.json canonical string escaping includes forward slashes.
-        var json = Encoding.UTF8.GetString(buffer.ToArray()).Replace("/", "\\/", StringComparison.Ordinal);
-        return Encoding.UTF8.GetBytes(json);
+        var builder = new StringBuilder();
+        WriteCanonical(builder, element);
+        return Encoding.UTF8.GetBytes(builder.ToString());
     }
 
-    private static void WriteCanonical(Utf8JsonWriter writer, JsonElement value)
+    private static void WriteCanonical(StringBuilder builder, JsonElement value)
     {
         switch (value.ValueKind)
         {
             case JsonValueKind.Object:
-                writer.WriteStartObject();
+                builder.Append('{');
+                var firstProperty = true;
                 foreach (var property in value.EnumerateObject()
                              .OrderBy(x => x.Name, StringComparer.Ordinal))
                 {
-                    writer.WritePropertyName(property.Name);
-                    WriteCanonical(writer, property.Value);
+                    if (!firstProperty) builder.Append(',');
+                    firstProperty = false;
+                    WriteCanonicalString(builder, property.Name);
+                    builder.Append(':');
+                    WriteCanonical(builder, property.Value);
                 }
-                writer.WriteEndObject();
+                builder.Append('}');
                 break;
             case JsonValueKind.Array:
-                writer.WriteStartArray();
+                builder.Append('[');
+                var firstItem = true;
                 foreach (var item in value.EnumerateArray())
-                    WriteCanonical(writer, item);
-                writer.WriteEndArray();
+                {
+                    if (!firstItem) builder.Append(',');
+                    firstItem = false;
+                    WriteCanonical(builder, item);
+                }
+                builder.Append(']');
                 break;
             case JsonValueKind.String:
-                writer.WriteStringValue(value.GetString());
+                WriteCanonicalString(builder, value.GetString() ?? string.Empty);
                 break;
             case JsonValueKind.Number:
-                writer.WriteRawValue(value.GetRawText(), skipInputValidation: false);
+                builder.Append(value.GetRawText());
                 break;
             case JsonValueKind.True:
-                writer.WriteBooleanValue(true);
+                builder.Append("true");
                 break;
             case JsonValueKind.False:
-                writer.WriteBooleanValue(false);
+                builder.Append("false");
                 break;
             default:
-                writer.WriteNullValue();
+                builder.Append("null");
                 break;
         }
+    }
+
+    private static void WriteCanonicalString(StringBuilder builder, string value)
+    {
+        builder.Append('"');
+        foreach (var character in value)
+        {
+            switch (character)
+            {
+                case '"': builder.Append("\\\""); break;
+                case '\\': builder.Append("\\\\"); break;
+                case '\b': builder.Append("\\b"); break;
+                case '\f': builder.Append("\\f"); break;
+                case '\n': builder.Append("\\n"); break;
+                case '\r': builder.Append("\\r"); break;
+                case '\t': builder.Append("\\t"); break;
+                default:
+                    if (character < ' ')
+                    {
+                        builder.Append("\\u");
+                        builder.Append(((int)character).ToString("x4"));
+                    }
+                    else
+                    {
+                        builder.Append(character);
+                    }
+                    break;
+            }
+        }
+        builder.Append('"');
     }
 
     private async Task WriteFrameAsync(
@@ -779,6 +1236,7 @@ public sealed class AgentClient : IAsyncDisposable
     }
 
     private static readonly JsonSerializerOptions AgentJsonOptions = new(JsonSerializerDefaults.Web);
+    private sealed record SignedRequest(string RequestId, byte[] Payload);
 
     private sealed class RootReadStream(AgentClient owner) : Stream
     {
@@ -989,9 +1447,7 @@ internal sealed class DesktopIdentity : IDisposable
 
     public static DesktopIdentity LoadOrCreate()
     {
-        var directory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "PhoneBackup");
+        var directory = AppRuntimeProfile.RoamingRoot;
         var path = Path.Combine(directory, "desktop.key");
         Directory.CreateDirectory(directory);
         Key key;

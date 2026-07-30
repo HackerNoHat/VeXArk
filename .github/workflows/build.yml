@@ -24,6 +24,8 @@ jobs:
           dotnet-version: "9.0.x"
       - name: Test core
         run: dotnet test tests/PhoneBackup.Core.Tests/PhoneBackup.Core.Tests.csproj --configuration Release
+      - name: Test desktop diagnostics
+        run: dotnet test tests/PhoneBackup.Desktop.Tests/PhoneBackup.Desktop.Tests.csproj --configuration Release -p:VeXArkChannel=Dev -p:VeXArkBuildId=ci
       - name: Build desktop
         run: dotnet build src/PhoneBackup.Desktop/PhoneBackup.Desktop.csproj --configuration Release
 
@@ -39,4 +41,4 @@ jobs:
       - uses: android-actions/setup-android@v3
       - name: Test and build debug APK
         working-directory: agent
-        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDev --no-daemon

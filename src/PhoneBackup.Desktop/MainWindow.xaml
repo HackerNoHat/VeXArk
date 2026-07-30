@@ -36,7 +36,7 @@
                     <Border Width="26" Height="26" CornerRadius="7" Background="#FFFFFFFF" Padding="3">
                         <Image Source="{StaticResource VeXArkMark}" Stretch="Uniform"/>
                     </Border>
-                    <TextBlock Text="VeXArk" FontWeight="SemiBold" FontSize="13"
+                    <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" FontSize="13"
                                VerticalAlignment="Center" Margin="9,0,0,0"/>
                     <TextBlock Text="  •  резервное копирование Android"
                                Foreground="{DynamicResource TextMutedBrush}"
@@ -69,7 +69,7 @@
                                     <Image Source="{StaticResource VeXArkMark}" Stretch="Uniform"/>
                                 </Border>
                                 <StackPanel Margin="12,1,0,0">
-                                    <TextBlock Text="VeXArk" FontSize="19" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding ProductName}" FontSize="19" FontWeight="SemiBold"/>
                                     <TextBlock Text="ваши данные — ваши"
                                                Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
                                 </StackPanel>
@@ -129,6 +129,17 @@
                                     <TextBlock Text="Настройки" FontWeight="SemiBold"/>
                                 </StackPanel>
                             </RadioButton>
+                            <RadioButton Style="{StaticResource NavButtonStyle}"
+                                         Visibility="{Binding DiagnosticsNavigationVisibility}"
+                                         IsChecked="{Binding IsDiagnosticsPage, Mode=OneWay}"
+                                         Command="{Binding ShowDiagnosticsCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE9D9;"
+                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                               FontSize="17" Width="30"/>
+                                    <TextBlock Text="Diagnostics — DEV" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </RadioButton>
                         </StackPanel>
 
                         <StackPanel DockPanel.Dock="Bottom">
@@ -145,6 +156,11 @@
                                 </StackPanel>
                             </Border>
                             <ProgressBar IsIndeterminate="{Binding IsBusy}"/>
+                            <Button Content="{Binding CancelOperationText}"
+                                    Command="{Binding CancelOperationCommand}"
+                                    Visibility="{Binding CancelOperationVisibility}"
+                                    Style="{StaticResource DangerButtonStyle}"
+                                    Margin="0,10,0,0"/>
                             <TextBlock Text="{Binding VersionLabel}"
                                        Foreground="{DynamicResource TextMutedBrush}"
                                        FontSize="11" HorizontalAlignment="Center" Margin="0,11,0,0"/>
@@ -777,6 +793,91 @@
                                              MinHeight="140"
                                              VerticalScrollBarVisibility="Auto"/>
                                 </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+
+                        <!-- Diagnostics -->
+                        <ScrollViewer Visibility="{Binding DiagnosticsVisibility}"
+                                      VerticalScrollBarVisibility="Auto">
+                            <Grid MaxWidth="1040">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="14"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1.4*"/>
+                                        <ColumnDefinition Width="18"/>
+                                        <ColumnDefinition Width="1*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Сквозная диагностика"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <TextBlock
+                                                Text="Показывает реальную версию Agent, pairing, root_request и ответ KernelSU/libsu."
+                                                Foreground="{DynamicResource TextMutedBrush}"
+                                                TextWrapping="Wrap" Margin="0,6,0,14"/>
+                                            <TextBox Text="{Binding DiagnosticsSummary}"
+                                                     IsReadOnly="True"
+                                                     AcceptsReturn="True"
+                                                     TextWrapping="Wrap"
+                                                     MinHeight="220"
+                                                     VerticalScrollBarVisibility="Auto"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="Действия"
+                                                       Style="{StaticResource SectionTitleStyle}"/>
+                                            <Button Content="Проверить Agent Dev"
+                                                    Command="{Binding CheckAgentDevCommand}"
+                                                    Margin="0,14,0,0"/>
+                                            <Button Content="Установить / обновить Agent Dev"
+                                                    Command="{Binding InstallOrUpdateAgentDevCommand}"
+                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                    Margin="0,8,0,0"/>
+                                            <Button Content="Запустить Root test"
+                                                    Command="{Binding RunRootDiagnosticCommand}"
+                                                    Margin="0,8,0,0"/>
+                                            <Button Content="Обновить логи Agent"
+                                                    Command="{Binding RefreshAgentDiagnosticsCommand}"
+                                                    Margin="0,8,0,0"/>
+                                            <Button Content="Копировать видимые логи"
+                                                    Command="{Binding CopyDiagnosticsCommand}"
+                                                    Margin="0,8,0,0"/>
+                                            <Button Content="Очистить отображение"
+                                                    Command="{Binding ClearDiagnosticsCommand}"
+                                                    Margin="0,8,0,0"/>
+                                            <Button Content="Открыть папку логов"
+                                                    Command="{Binding OpenDiagnosticsFolderCommand}"
+                                                    Margin="0,8,0,0"/>
+                                            <Button Content="Экспортировать support bundle"
+                                                    Command="{Binding ExportSupportBundleCommand}"
+                                                    Margin="0,8,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                <Border Grid.Row="2" Style="{StaticResource CardStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="Живой журнал — последние 500 событий"
+                                                   Style="{StaticResource SectionTitleStyle}"/>
+                                        <ListBox ItemsSource="{Binding DiagnosticLines}"
+                                                 MaxHeight="420"
+                                                 Margin="0,10,0,0"
+                                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}"
+                                                               FontFamily="Cascadia Mono, Consolas"
+                                                               FontSize="11"
+                                                               TextWrapping="Wrap"/>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </StackPanel>
+                                </Border>
                             </Grid>
                         </ScrollViewer>
 

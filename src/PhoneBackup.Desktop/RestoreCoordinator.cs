@@ -175,7 +175,10 @@ public sealed class RestoreCoordinator(AdbService adb)
             finally
             {
                 if (sessionId is not null)
-                    await adb.AbandonInstallSessionAsync(serial, sessionId.Value, cancellationToken);
+                    await AbandonInstallSessionAsync(
+                        serial,
+                        sessionId.Value,
+                        cancellationToken);
             }
             index++;
         }
@@ -275,7 +278,10 @@ public sealed class RestoreCoordinator(AdbService adb)
             }
             finally
             {
-                await agent.FinishPackageRestoreAsync(group.Key, cancellationToken);
+                await FinishPackageRestoreAsync(
+                    agent,
+                    group.Key,
+                    cancellationToken);
             }
             packageIndex++;
         }
@@ -405,6 +411,75 @@ public sealed class RestoreCoordinator(AdbService adb)
 
     private static int PathDepth(string path) =>
         path.Count(x => x is '/' or '\\');
+
+    private async Task AbandonInstallSessionAsync(
+        string serial,
+        int sessionId,
+        CancellationToken operationToken)
+    {
+        if (!operationToken.IsCancellationRequested)
+        {
+            await adb.AbandonInstallSessionAsync(serial, sessionId, operationToken);
+            return;
+        }
+
+        using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        try
+        {
+            await adb.AbandonInstallSessionAsync(
+                serial,
+                sessionId,
+                cleanupTimeout.Token);
+        }
+        catch (Exception error)
+        {
+            DesktopDiagnostics.Log(
+                "warn",
+                "restore",
+                "install_session_cleanup_failed",
+                "Could not abandon install session after cancellation",
+                result: "failed",
+                error: error,
+                fields: new Dictionary<string, object?>
+                {
+                    ["sessionId"] = sessionId
+                });
+        }
+    }
+
+    private static async Task FinishPackageRestoreAsync(
+        AgentClient agent,
+        string packageName,
+        CancellationToken operationToken)
+    {
+        if (!operationToken.IsCancellationRequested)
+        {
+            await agent.FinishPackageRestoreAsync(packageName, operationToken);
+            return;
+        }
+
+        using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        try
+        {
+            await agent.FinishPackageRestoreAsync(
+                packageName,
+                cleanupTimeout.Token);
+        }
+        catch (Exception error)
+        {
+            DesktopDiagnostics.Log(
+                "warn",
+                "restore",
+                "package_cleanup_failed",
+                "Could not finish package restore after cancellation",
+                result: "failed",
+                error: error,
+                fields: new Dictionary<string, object?>
+                {
+                    ["packageName"] = packageName
+                });
+        }
+    }
 
     private static void DeleteStaging(string path)
     {

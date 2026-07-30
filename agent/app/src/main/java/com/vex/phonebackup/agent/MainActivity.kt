@@ -2,6 +2,9 @@ package com.vex.phonebackup.agent
 
 import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -52,6 +55,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private data class AccessState(
     val contacts: Boolean = false,
@@ -112,6 +119,14 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private fun requestRoot() {
+        lifecycleScope.launch {
+            rootProbe = withContext(Dispatchers.IO) {
+                RootCapabilities.probe(requestGrant = true)
+            }
+        }
+    }
+
     private fun requestPersonalPermissions() {
         val requested = buildList {
             add(Manifest.permission.READ_CONTACTS)
@@ -142,6 +157,8 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun AgentScreen() {
+        AgentState.diagnosticRevision
+        val diagnosticEvents = AgentDiagnostics.snapshot()
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             contentWindowInsets = WindowInsets.safeDrawing,
@@ -202,7 +219,10 @@ class MainActivity : ComponentActivity() {
                 StatusCard(
                     "Agent",
                     if (AgentState.serviceRunning)
-                        tr("Running • local port 49321", "Работает • локальный порт 49321")
+                        tr(
+                            "Running • local port ${BuildConfig.AGENT_PORT}",
+                            "Работает • локальный порт ${BuildConfig.AGENT_PORT}"
+                        )
                     else
                         tr("Stopped", "Остановлен"),
                     AgentState.serviceRunning
@@ -303,11 +323,16 @@ class MainActivity : ComponentActivity() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     FilledTonalButton(
-                        onClick = { rootProbe = RootCapabilities.probe(true) },
+                        onClick = ::requestRoot,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(tr("Check and request root", "Проверить и запросить root"))
                     }
+                    Text(
+                        rootProbe.detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     OutlinedButton(
                         onClick = {
                             stopService(
@@ -317,6 +342,67 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(tr("Stop Agent", "Остановить Agent"))
+                    }
+                }
+
+                if (BuildConfig.DIAGNOSTICS_ENABLED) {
+                    SectionCard(
+                        tr("Diagnostics — DEV", "Диагностика — DEV")
+                    ) {
+                        Text(
+                            "channel=${BuildConfig.BUILD_CHANNEL} • " +
+                                "version=${BuildConfig.VERSION_NAME} • " +
+                                "build=${BuildConfig.BUILD_ID}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "package=${BuildConfig.APPLICATION_ID}\n" +
+                                "uid=${android.os.Process.myUid()} • " +
+                                "port=${BuildConfig.AGENT_PORT}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        rootProbe.diagnostics?.let { trace ->
+                            Text(
+                                "root attempt=${trace.attemptId.take(8)} • " +
+                                    "exit=${trace.shellExitCode ?: "—"} • " +
+                                    "grant=${trace.appGrantState}\n" +
+                                    "stdout=${trace.stdout.ifBlank { "—" }}\n" +
+                                    "stderr=${trace.stderr.ifBlank { "—" }}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Text(
+                            diagnosticEvents.takeLast(40)
+                                .joinToString("\n", transform = AgentDiagnosticEvent::displayLine)
+                                .ifBlank { tr("No events yet", "Событий пока нет") },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = ::copyDiagnostics,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(tr("Copy", "Копировать"))
+                            }
+                            OutlinedButton(
+                                onClick = ::shareDiagnostics,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(tr("Share", "Поделиться"))
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = AgentDiagnostics::clear,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(tr("Clear diagnostic log", "Очистить журнал"))
+                        }
                     }
                 }
 
@@ -714,6 +800,27 @@ class MainActivity : ComponentActivity() {
             .putString(KEY_LANGUAGE, language)
             .apply()
         PhoneBackupAgentApp.updateNotificationChannel(this, language == "ru")
+    }
+
+    private fun copyDiagnostics() {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText("VeXArk Agent diagnostics", AgentDiagnostics.reportText())
+        )
+        AgentState.statusText = "Diagnostics copied"
+    }
+
+    private fun shareDiagnostics() {
+        startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, "VeXArk Agent diagnostics")
+                    putExtra(Intent.EXTRA_TEXT, AgentDiagnostics.reportText())
+                },
+                tr("Share diagnostics", "Поделиться диагностикой")
+            )
+        )
     }
 
     private fun tr(english: String, russian: String): String =

@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import org.json.JSONObject
@@ -25,6 +26,13 @@ class AgentForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        AgentDiagnostics.log(
+            level = "info",
+            component = "service",
+            eventCode = "create",
+            message = "Foreground service created",
+            fields = mapOf("port" to PORT, "channel" to BuildConfig.BUILD_CHANNEL)
+        )
         startForeground(
             NOTIFICATION_ID,
             notification(uiText("Waiting for VeXArk on the PC", "Ожидание VeXArk на ПК"))
@@ -38,6 +46,12 @@ class AgentForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        AgentDiagnostics.log(
+            level = "info",
+            component = "service",
+            eventCode = "destroy",
+            message = "Foreground service is stopping"
+        )
         running.set(false)
         runCatching { server?.close() }
         FastMediaSessionManager.closeAll()
@@ -58,17 +72,40 @@ class AgentForegroundService : Service() {
         acceptor.execute {
             try {
                 server = ServerSocket(PORT, 4, InetAddress.getLoopbackAddress())
+                AgentDiagnostics.log(
+                    level = "info",
+                    component = "service",
+                    eventCode = "listening",
+                    message = "Agent protocol server is listening",
+                    fields = mapOf("port" to PORT)
+                )
                 while (running.get()) {
                     val socket = server?.accept() ?: break
                     clients.execute {
                         runCatching { handleClient(socket) }
-                            .onFailure {
-                                AgentState.statusText = "Connection closed: ${it.message.orEmpty()}"
+                            .onFailure { failure ->
+                                AgentState.statusText =
+                                    "Connection closed: ${failure.message.orEmpty()}"
+                                AgentDiagnostics.log(
+                                    level = "error",
+                                    component = "protocol",
+                                    eventCode = "client_failed",
+                                    message = "Agent client loop failed",
+                                    error = failure
+                                )
                             }
                     }
                 }
             } catch (error: Exception) {
                 if (running.get()) AgentState.statusText = "Agent error: ${error.message}"
+                AgentDiagnostics.log(
+                    level = "error",
+                    component = "service",
+                    eventCode = "listen_failed",
+                    message = "Agent protocol server failed",
+                    error = error,
+                    fields = mapOf("port" to PORT)
+                )
             }
         }
     }
@@ -78,6 +115,12 @@ class AgentForegroundService : Service() {
             it.tcpNoDelay = true
             AgentState.connectedClient = it.inetAddress.hostAddress
             AgentState.statusText = "PC connected"
+            AgentDiagnostics.log(
+                level = "info",
+                component = "protocol",
+                eventCode = "client_connected",
+                message = "Desktop connected to Agent"
+            )
             while (running.get() && !it.isClosed) {
                 val frame = try {
                     ProtocolFrameIo.read(it.getInputStream())
@@ -86,6 +129,13 @@ class AgentForegroundService : Service() {
                 } catch (failure: Exception) {
                     Log.w(LOG_TAG, "Failed to read protocol frame", failure)
                     AgentState.statusText = "Connection closed: invalid frame"
+                    AgentDiagnostics.log(
+                        level = "error",
+                        component = "protocol",
+                        eventCode = "frame_read_failed",
+                        message = "Failed to read protocol frame",
+                        error = failure
+                    )
                     break
                 }
                 if (frame.type != FrameType.COMMAND) {
@@ -106,6 +156,15 @@ class AgentForegroundService : Service() {
                     runCatching { dispatchStreaming(it, request) }
                         .onFailure { failure ->
                             AgentState.statusText = "Command error: ${failure.message.orEmpty()}"
+                            AgentDiagnostics.log(
+                                level = "error",
+                                component = "protocol",
+                                eventCode = "stream_command_failed",
+                                message = "Streaming command failed",
+                                requestId = request.optString("requestId"),
+                                error = failure,
+                                fields = mapOf("command" to request.optString("command"))
+                            )
                             runCatching {
                                 error(it, "command_failed", failure.message.orEmpty())
                             }
@@ -115,6 +174,15 @@ class AgentForegroundService : Service() {
                 runCatching { dispatch(it, request) }
                     .onFailure { failure ->
                         AgentState.statusText = "Command error: ${failure.message.orEmpty()}"
+                        AgentDiagnostics.log(
+                            level = "error",
+                            component = "protocol",
+                            eventCode = "command_failed",
+                            message = "Protocol command failed",
+                            requestId = request.optString("requestId"),
+                            error = failure,
+                            fields = mapOf("command" to request.optString("command"))
+                        )
                         runCatching {
                             error(it, "command_failed", failure.message.orEmpty())
                         }
@@ -123,21 +191,46 @@ class AgentForegroundService : Service() {
             RootHelper.cleanup(this)
             AgentState.connectedClient = null
             AgentState.statusText = "Waiting for VeXArk Desktop"
+            AgentDiagnostics.log(
+                level = "info",
+                component = "protocol",
+                eventCode = "client_disconnected",
+                message = "Desktop disconnected from Agent"
+            )
         }
     }
 
     private fun dispatch(socket: Socket, request: JSONObject) {
+        val startedAt = SystemClock.elapsedRealtime()
         val requestId = request.optString("requestId")
         val command = request.optString("command")
         val desktopKey = request.optString("desktopKey")
         val response = JSONObject()
             .put("protocolVersion", PROTOCOL_VERSION)
             .put("requestId", requestId)
+        AgentDiagnostics.log(
+            level = "info",
+            component = "protocol",
+            eventCode = "command_received",
+            message = "Command received",
+            requestId = requestId,
+            fields = mapOf("command" to command)
+        )
 
         val authenticationError = RequestSecurity.verify(request)
         if (authenticationError != null) {
             response.put("ok", false).put("error", authenticationError)
             ProtocolFrameIo.writeJson(socket.getOutputStream(), FrameType.RESPONSE, response)
+            AgentDiagnostics.log(
+                level = "warn",
+                component = "protocol",
+                eventCode = "authentication_failed",
+                message = "Signed request validation failed",
+                requestId = requestId,
+                durationMs = SystemClock.elapsedRealtime() - startedAt,
+                result = authenticationError,
+                fields = mapOf("command" to command)
+            )
             return
         }
 
@@ -146,12 +239,23 @@ class AgentForegroundService : Service() {
                 response.put("ok", true)
                     .put("agentVersion", BuildConfig.VERSION_NAME)
                     .put("helperVersion", "rust-0.1.0")
+                    .put(
+                        "build",
+                        JSONObject()
+                            .put("channel", BuildConfig.BUILD_CHANNEL)
+                            .put("packageName", BuildConfig.APPLICATION_ID)
+                            .put("versionName", BuildConfig.VERSION_NAME)
+                            .put("versionCode", BuildConfig.VERSION_CODE)
+                            .put("buildId", BuildConfig.BUILD_ID)
+                            .put("agentPort", BuildConfig.AGENT_PORT)
+                            .put("diagnosticsEnabled", BuildConfig.DIAGNOSTICS_ENABLED)
+                    )
                     .put("capabilities", JSONArray(listOf(
                         "inventory", "packages", "pairing", "no-root", "shared-storage",
                         "personal-data", "root-scan", "root-read", "root-restore",
                         "shared-restore", "media-export", "account-inventory",
                         "package-policy", "restore-approval", "media-export-v2",
-                        "fast-lan-aead-v1"
+                        "fast-lan-aead-v1", "diagnostics-v1"
                     )))
             }
             "pair" -> {
@@ -191,7 +295,16 @@ class AgentForegroundService : Service() {
                     .put("granted", root.granted)
                     .put("provider", root.provider)
                     .put("detail", root.detail)
+                    .put("diagnostics", root.diagnostics?.toJson() ?: JSONObject.NULL)
                     .put("helper", helper ?: JSONObject.NULL)
+            }
+            "diagnostics_snapshot" -> authorized(desktopKey, response) {
+                response.put("ok", true)
+                    .put("snapshot", AgentDiagnostics.snapshotJson())
+            }
+            "diagnostics_clear" -> authorized(desktopKey, response) {
+                AgentDiagnostics.clear()
+                response.put("ok", true)
             }
             "shared_roots" -> authorized(desktopKey, response) {
                 response.put("ok", true)
@@ -313,24 +426,79 @@ class AgentForegroundService : Service() {
             else -> response.put("ok", false).put("error", "unknown_command")
         }
         ProtocolFrameIo.writeJson(socket.getOutputStream(), FrameType.RESPONSE, response)
+        val ok = response.optBoolean("ok", false)
+        AgentDiagnostics.log(
+            level = if (ok) "info" else "warn",
+            component = "protocol",
+            eventCode = "command_completed",
+            message = "Command completed",
+            requestId = requestId,
+            durationMs = SystemClock.elapsedRealtime() - startedAt,
+            result = if (ok) "ok" else response.optString("error", "failed"),
+            fields = mapOf("command" to command)
+        )
     }
 
     private fun dispatchStreaming(socket: Socket, request: JSONObject) {
+        val startedAt = SystemClock.elapsedRealtime()
+        val requestId = request.optString("requestId")
+        val command = request.optString("command")
+        AgentDiagnostics.log(
+            level = "info",
+            component = "protocol",
+            eventCode = "stream_started",
+            message = "Streaming command started",
+            requestId = requestId,
+            fields = mapOf("command" to command)
+        )
         val authenticationError = RequestSecurity.verify(request)
         if (authenticationError != null) {
             error(socket, authenticationError, "Signed request validation failed")
+            AgentDiagnostics.log(
+                level = "warn",
+                component = "protocol",
+                eventCode = "stream_authentication_failed",
+                message = "Streaming request signature validation failed",
+                requestId = requestId,
+                durationMs = SystemClock.elapsedRealtime() - startedAt,
+                result = authenticationError,
+                fields = mapOf("command" to command)
+            )
             return
         }
         val desktopKey = request.optString("desktopKey")
         if (!isTrusted(desktopKey)) {
             error(socket, "not_paired", "Desktop is not paired")
+            AgentDiagnostics.log(
+                level = "warn",
+                component = "protocol",
+                eventCode = "stream_not_paired",
+                message = "Streaming request rejected because Desktop is not paired",
+                requestId = requestId,
+                durationMs = SystemClock.elapsedRealtime() - startedAt,
+                result = "not_paired",
+                fields = mapOf("command" to command)
+            )
             return
         }
-        val command = request.optString("command")
         if (command.startsWith("root_")) {
-            val root = RootCapabilities.probe(requestGrant = true)
-            if (!root.granted) {
+            val root = if (RootCapabilities.hasCachedRootShell()) {
+                null
+            } else {
+                RootCapabilities.probe(requestGrant = true)
+            }
+            if (root?.granted == false) {
                 error(socket, "root_required", root.detail)
+                AgentDiagnostics.log(
+                    level = "warn",
+                    component = "protocol",
+                    eventCode = "stream_root_denied",
+                    message = root.detail,
+                    requestId = requestId,
+                    durationMs = SystemClock.elapsedRealtime() - startedAt,
+                    result = "root_required",
+                    fields = mapOf("command" to command)
+                )
                 return
             }
         }
@@ -379,6 +547,19 @@ class AgentForegroundService : Service() {
                     .put("acceptedOffset", result.acceptedOffset)
                     .put("transferredBytes", result.transferredBytes)
                     .put("sha256", result.sha256)
+            )
+            AgentDiagnostics.log(
+                level = "info",
+                component = "protocol",
+                eventCode = "stream_completed",
+                message = "Streaming command completed",
+                requestId = requestId,
+                durationMs = SystemClock.elapsedRealtime() - startedAt,
+                result = "ok",
+                fields = mapOf(
+                    "command" to command,
+                    "transferredBytes" to result.transferredBytes
+                )
             )
             return
         }
@@ -505,6 +686,16 @@ class AgentForegroundService : Service() {
         } else {
             error(socket, "helper_failed", "Root helper command failed")
         }
+        AgentDiagnostics.log(
+            level = if (success) "info" else "warn",
+            component = "protocol",
+            eventCode = "stream_completed",
+            message = "Streaming command completed",
+            requestId = requestId,
+            durationMs = SystemClock.elapsedRealtime() - startedAt,
+            result = if (success) "ok" else "helper_failed",
+            fields = mapOf("command" to command)
+        )
     }
 
     private inline fun authorized(key: String, response: JSONObject, block: () -> Unit) {
@@ -551,11 +742,11 @@ class AgentForegroundService : Service() {
 
     companion object {
         const val CHANNEL_ID = "phonebackup_operations"
-        const val PORT = 49321
+        val PORT: Int = BuildConfig.AGENT_PORT
         const val PROTOCOL_VERSION = 1
         const val PREFS = "agent_security"
         const val KEY_TRUSTED = "trusted_desktop_keys"
-        private const val NOTIFICATION_ID = 49321
+        private val NOTIFICATION_ID: Int = BuildConfig.AGENT_PORT
         private const val RESTORE_APPROVAL_MILLIS = 120_000L
         private const val LOG_TAG = "VeXArkAgent"
     }

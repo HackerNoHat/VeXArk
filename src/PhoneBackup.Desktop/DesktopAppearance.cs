@@ -20,8 +20,7 @@ public static class DesktopSettingsStore
     private static readonly object Gate = new();
 
     public static string SettingsPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "PhoneBackup",
+        AppRuntimeProfile.RoamingRoot,
         "settings.json");
 
     public static DesktopPreferences Load()
@@ -287,6 +286,18 @@ public static class LocalizationManager
         ["Фото и видео из общей памяти сохраняются через отдельный простой экспорт."] =
             "Photos and videos from shared storage use a separate simple export.",
         ["Создать резервную копию"] = "Create backup",
+        ["Отменить копирование"] = "Cancel copying",
+        ["Отмена…"] = "Cancelling…",
+        ["Отмена… Текущий файл корректно закрывается."] =
+            "Cancelling… The current file is being closed safely.",
+        ["Backup отменён. Незавершённый snapshot не опубликован; уже записанные chunks будут использованы при следующем запуске."] =
+            "Backup cancelled. The incomplete snapshot was not published; existing chunks will be reused next time.",
+        ["Копирование с Android отменено. Готовые файлы сохранены; незавершённые продолжатся при следующем запуске."] =
+            "Android copying cancelled. Completed files were kept; incomplete files will resume next time.",
+        ["Копирование с iPhone отменено. Уже импортированные файлы сохранены."] =
+            "iPhone copying cancelled. Files already imported were kept.",
+        ["Restore отменён. Телефон мог быть изменён частично; повторите восстановление для завершения."] =
+            "Restore cancelled. The phone may be partially changed; run restore again to finish.",
         ["Семейный фотоархив"] = "Family photo archive",
         ["Скопируйте все оригиналы с телефона в обычную папку Windows. Root не нужен."] =
             "Copy every original from the phone to a regular Windows folder. Root is not required.",
@@ -383,6 +394,7 @@ public static class LocalizationManager
         ["полностью офлайн"] = "fully offline",
         ["USB и Wireless ADB объединяются по физическому устройству"] =
             "USB and Wireless ADB connections are merged by physical device",
+        ["Root проверяется Android Agent"] = "Root is checked by Android Agent",
         ["Локальный зашифрованный репозиторий"] = "Local encrypted repository",
         ["Сначала выберите устройство"] = "Select a device first",
         ["Android: выберите устройство • iPhone: подключите по USB"] =
@@ -471,6 +483,19 @@ public static class LocalizationManager
         ("Очистка незадействованных chunks", "Cleaning unused chunks"),
         ("Пароль изменён", "Password changed"),
         ("Готово", "Ready"),
+        ("Сквозная диагностика", "End-to-end diagnostics"),
+        ("Показывает реальную версию Agent, pairing, root_request и ответ KernelSU/libsu.",
+            "Shows the actual Agent version, pairing, root_request and KernelSU/libsu response."),
+        ("Действия", "Actions"),
+        ("Проверить Agent Dev", "Check Agent Dev"),
+        ("Установить / обновить Agent Dev", "Install / update Agent Dev"),
+        ("Запустить Root test", "Run root test"),
+        ("Обновить логи Agent", "Refresh Agent logs"),
+        ("Копировать видимые логи", "Copy visible logs"),
+        ("Очистить отображение", "Clear view"),
+        ("Открыть папку логов", "Open log folder"),
+        ("Экспортировать support bundle", "Export support bundle"),
+        ("Живой журнал — последние 500 событий", "Live log — latest 500 events"),
         ("Root не найден", "Root not found"),
         ("root не требуется", "root not required"),
         ("Хранилище: неизвестно", "Storage: unknown"),
