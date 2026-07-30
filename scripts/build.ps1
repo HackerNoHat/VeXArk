@@ -157,17 +157,29 @@ if ($Channel -eq "Stable" -and $Configuration -eq "Release") {
     if (-not $apksigner) {
         throw "apksigner не найден в Android SDK: $androidSdk"
     }
-    $signerOutput = (& $apksigner verify --print-certs $agentApk 2>&1) -join "`n"
+    $signerOutput = (& $apksigner verify --print-certs-pem $agentApk 2>&1) -join "`n"
     if ($LASTEXITCODE -ne 0) {
         throw "Проверка подписи Android Agent завершилась ошибкой: $signerOutput"
     }
     $certificateMatch = [regex]::Match(
         $signerOutput,
-        "Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]{64})")
+        "(?s)-----BEGIN CERTIFICATE-----\s*" +
+        "(?<base64>[A-Za-z0-9+/=\r\n]+?)\s*" +
+        "-----END CERTIFICATE-----")
     if (-not $certificateMatch.Success) {
-        throw "apksigner не вернул SHA-256 сертификата Android Agent."
+        throw "apksigner не вернул PEM-сертификат Android Agent."
     }
-    $actualSigningCertificate = $certificateMatch.Groups[1].Value.ToLowerInvariant()
+    $certificateBytes = [Convert]::FromBase64String(
+        ($certificateMatch.Groups["base64"].Value -replace "\s", ""))
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        $actualSigningCertificate = (
+            $sha256.ComputeHash($certificateBytes) |
+                ForEach-Object { $_.ToString("x2") }) -join ""
+    }
+    finally {
+        $sha256.Dispose()
+    }
     if ($actualSigningCertificate -ne $expectedSigningCertificate) {
         throw "APK подписан неверным сертификатом: $actualSigningCertificate; " +
               "stable ожидает $expectedSigningCertificate. Публикация заблокирована."

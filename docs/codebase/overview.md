@@ -1,6 +1,6 @@
 # Codebase Overview
 
-Generated at: `2026-07-30T18:45:57`
+Generated at: `2026-07-30T18:55:06`
 
 Root: repository root (`.`)
 
@@ -8,9 +8,9 @@ This map is generated from filesystem metadata, README/AGENTS Markdown, and Pyth
 
 ## Counts
 
-- Files indexed: `4501`
+- Files indexed: `4502`
 - Python modules: `0`
-- Total bytes indexed by path metadata: `2,332,617,238`
+- Total bytes indexed by path metadata: `2,332,621,975`
 
 ## Top-level Folders
 
@@ -21,7 +21,7 @@ This map is generated from filesystem metadata, README/AGENTS Markdown, and Pyth
 | tests | 508 |
 | helper | 320 |
 | agent | 55 |
-| docs | 26 |
+| docs | 27 |
 | artifacts | 10 |
 | .github | 7 |
 | scripts | 4 |
@@ -57,7 +57,7 @@ This map is generated from filesystem metadata, README/AGENTS Markdown, and Pyth
 | .rlib | 34 |
 | .rmeta | 34 |
 | .txt | 25 |
-| .md | 21 |
+| .md | 22 |
 | .kt | 21 |
 | .so | 20 |
 | .editorconfig | 14 |

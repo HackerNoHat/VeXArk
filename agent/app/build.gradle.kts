@@ -28,8 +28,8 @@ android {
         applicationId = "com.vex.phonebackup.agent"
         minSdk = 29
         targetSdk = 36
-        versionCode = 11
-        versionName = "0.8.0-beta.2"
+        versionCode = 12
+        versionName = "0.8.0-beta.3"
         manifestPlaceholders["appLabel"] = "VeXArk Agent"
         buildConfigField("String", "BUILD_CHANNEL", "\"stable\"")
         buildConfigField("String", "BUILD_ID", "\"$vexarkBuildId\"")

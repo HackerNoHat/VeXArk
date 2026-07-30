@@ -49,7 +49,7 @@ APK and Android Platform Tools; neither an installer nor administrator rights ar
 required.
 
 > Testing iPhone import? Use the
-> [`v0.8.0-beta.2` prerelease](https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.8.0-beta.2).
+> [`v0.8.0-beta.3` prerelease](https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.8.0-beta.3).
 
 ## Why VeXArk
 

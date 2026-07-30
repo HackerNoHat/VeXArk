@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-07-30T18:45:57",
+  "generated_at": "2026-07-30T18:55:06",
   "root": "D:\\Ilya\\VeXArk",
-  "file_count": 4501,
+  "file_count": 4502,
   "python_module_count": 0,
   "top_level_counts": {
     "src": 2676,
@@ -9,7 +9,7 @@
     "tests": 508,
     "helper": 320,
     "agent": 55,
-    "docs": 26,
+    "docs": 27,
     "artifacts": 10,
     ".github": 7,
     "scripts": 4,
@@ -42,7 +42,7 @@
     ".rlib": 34,
     ".rmeta": 34,
     ".txt": 25,
-    ".md": 21,
+    ".md": 22,
     ".kt": 21,
     ".so": 20,
     ".editorconfig": 14,
@@ -191,7 +191,7 @@
     {
       "path": "agent/.gradle/9.5.1/fileHashes/resourceHashesCache.bin",
       "suffix": ".bin",
-      "size": 28663,
+      "size": 29037,
       "kind": "other"
     },
     {
@@ -545,7 +545,7 @@
     {
       "path": "CHANGELOG.md",
       "suffix": ".md",
-      "size": 10246,
+      "size": 10876,
       "kind": "docs"
     },
     {
@@ -635,7 +635,7 @@
     {
       "path": "docs/codebase/index.json",
       "suffix": ".json",
-      "size": 895235,
+      "size": 895233,
       "kind": "data"
     },
     {
@@ -702,6 +702,12 @@
       "path": "docs/releases/v0.8.0-beta.2.md",
       "suffix": ".md",
       "size": 4562,
+      "kind": "docs"
+    },
+    {
+      "path": "docs/releases/v0.8.0-beta.3.md",
+      "suffix": ".md",
+      "size": 3362,
       "kind": "docs"
     },
     {
@@ -2687,7 +2693,7 @@
     {
       "path": "scripts/build.ps1",
       "suffix": ".ps1",
-      "size": 12026,
+      "size": 12395,
       "kind": "code"
     },
     {
@@ -19619,7 +19625,7 @@
     {
       "path": "tests/PhoneBackup.Core.Tests/bin/Release/net9.0/PhoneBackup.Core.pdb",
       "suffix": ".pdb",
-      "size": 110320,
+      "size": 110324,
       "kind": "other"
     },
     {
